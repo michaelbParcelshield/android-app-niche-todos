@@ -11,6 +11,31 @@ class TodoViewModel : ViewModel() {
     private val _todos = MutableLiveData<List<Todo>>(emptyList())
     val todos: LiveData<List<Todo>> = _todos
 
+    private fun buildProperties(title: String): List<TodoProperty> {
+        return listOf(
+            TodoProperty.Title(title),
+            TodoProperty.StartDateTime(null),
+            TodoProperty.EndDateTime(null)
+        )
+    }
+
+    private fun updateTitle(properties: List<TodoProperty>, title: String): List<TodoProperty> {
+        var hasTitle = false
+        val updated = properties.map { property ->
+            if (property is TodoProperty.Title) {
+                hasTitle = true
+                TodoProperty.Title(title)
+            } else {
+                property
+            }
+        }
+        return if (hasTitle) {
+            updated
+        } else {
+            listOf(TodoProperty.Title(title)) + updated
+        }
+    }
+
     fun addTodo(text: String) {
         val trimmedText = text.trim()
         if (trimmedText.isEmpty()) {
@@ -19,7 +44,7 @@ class TodoViewModel : ViewModel() {
 
         val newTodo = Todo(
             id = UUID.randomUUID().toString(),
-            text = trimmedText,
+            properties = buildProperties(trimmedText),
             isCompleted = false
         )
 
@@ -47,7 +72,7 @@ class TodoViewModel : ViewModel() {
         val currentList = _todos.value ?: return
         _todos.value = currentList.map { todo ->
             if (todo.id == id) {
-                todo.copy(text = trimmedText)
+                todo.copy(properties = updateTitle(todo.properties, trimmedText))
             } else {
                 todo
             }

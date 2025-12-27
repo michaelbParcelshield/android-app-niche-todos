@@ -81,7 +81,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showEditDialog(todo: Todo) {
         val editText = EditText(this).apply {
-            setText(todo.text)
+            setText(todo.title)
             hint = getString(R.string.todo_hint)
         }
 

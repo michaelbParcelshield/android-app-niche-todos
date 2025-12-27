@@ -25,9 +25,13 @@ class TodoViewModelTest {
             val todos = viewModel.todos.value
             assertNotNull(todos)
             assertEquals(1, todos?.size)
-            assertEquals("Buy milk", todos?.get(0)?.text)
-            assertEquals(false, todos?.get(0)?.isCompleted)
-            assertNotNull(todos?.get(0)?.id)
+            val todo = todos?.get(0)
+            assertEquals("Buy milk", todo?.title)
+            assertEquals(false, todo?.isCompleted)
+            assertNotNull(todo?.id)
+            assertEquals(1, todo?.properties?.filterIsInstance<TodoProperty.Title>()?.size)
+            assertEquals(1, todo?.properties?.filterIsInstance<TodoProperty.StartDateTime>()?.size)
+            assertEquals(1, todo?.properties?.filterIsInstance<TodoProperty.EndDateTime>()?.size)
         } finally {
             viewModel.todos.removeObserver(observer)
         }
@@ -66,9 +70,9 @@ class TodoViewModelTest {
 
             val todos = viewModel.todos.value
             assertEquals(3, todos?.size)
-            assertEquals("First", todos?.get(0)?.text)
-            assertEquals("Second", todos?.get(1)?.text)
-            assertEquals("Third", todos?.get(2)?.text)
+            assertEquals("First", todos?.get(0)?.title)
+            assertEquals("Second", todos?.get(1)?.title)
+            assertEquals("Third", todos?.get(2)?.title)
         } finally {
             viewModel.todos.removeObserver(observer)
         }
@@ -153,7 +157,7 @@ class TodoViewModelTest {
             viewModel.updateTodo(todoId, "Updated text")
 
             val updatedTodo = viewModel.todos.value?.get(0)
-            assertEquals("Updated text", updatedTodo?.text)
+            assertEquals("Updated text", updatedTodo?.title)
             assertEquals(todoId, updatedTodo?.id)
             assertEquals(false, updatedTodo?.isCompleted)
         } finally {
@@ -173,10 +177,10 @@ class TodoViewModelTest {
             val todoId = viewModel.todos.value?.get(0)?.id ?: ""
 
             viewModel.updateTodo(todoId, "")
-            assertEquals("Original", viewModel.todos.value?.get(0)?.text)
+            assertEquals("Original", viewModel.todos.value?.get(0)?.title)
 
             viewModel.updateTodo(todoId, "   ")
-            assertEquals("Original", viewModel.todos.value?.get(0)?.text)
+            assertEquals("Original", viewModel.todos.value?.get(0)?.title)
         } finally {
             viewModel.todos.removeObserver(observer)
         }
@@ -216,7 +220,7 @@ class TodoViewModelTest {
             viewModel.updateTodo(todoId, "Updated task")
 
             val todo = viewModel.todos.value?.get(0)
-            assertEquals("Updated task", todo?.text)
+            assertEquals("Updated task", todo?.title)
             assertEquals(true, todo?.isCompleted)
         } finally {
             viewModel.todos.removeObserver(observer)
@@ -280,8 +284,8 @@ class TodoViewModelTest {
 
             val todos = viewModel.todos.value
             assertEquals(2, todos?.size)
-            assertEquals("First", todos?.get(0)?.text)
-            assertEquals("Third", todos?.get(1)?.text)
+            assertEquals("First", todos?.get(0)?.title)
+            assertEquals("Third", todos?.get(1)?.title)
         } finally {
             viewModel.todos.removeObserver(observer)
         }

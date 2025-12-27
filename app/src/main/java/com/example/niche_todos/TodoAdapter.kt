@@ -43,7 +43,7 @@ class TodoAdapter(
         private val deleteButton: ImageButton = itemView.findViewById(R.id.button_delete)
 
         fun bind(todo: Todo) {
-            textView.text = todo.text
+            textView.text = todo.title
             checkBox.isChecked = todo.isCompleted
 
             // Apply strikethrough when completed
@@ -55,7 +55,7 @@ class TodoAdapter(
 
             // Update content description for accessibility
             val completionStatus = if (todo.isCompleted) "completed" else "not completed"
-            textView.contentDescription = "${todo.text}, $completionStatus"
+            textView.contentDescription = "${todo.title}, $completionStatus"
 
             checkBox.setOnClickListener {
                 onToggleComplete(todo.id)
