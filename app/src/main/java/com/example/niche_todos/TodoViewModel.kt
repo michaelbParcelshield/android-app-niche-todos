@@ -5,38 +5,44 @@ package com.example.niche_todos
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import java.time.LocalDateTime
 import java.util.UUID
 
 class TodoViewModel : ViewModel() {
     private val _todos = MutableLiveData<List<Todo>>(emptyList())
     val todos: LiveData<List<Todo>> = _todos
 
-    private fun buildProperties(title: String): List<TodoProperty> {
+    private fun buildProperties(
+        title: String,
+        startDateTime: LocalDateTime?,
+        endDateTime: LocalDateTime?
+    ): List<TodoProperty> {
         return listOf(
             TodoProperty.Title(title),
-            TodoProperty.StartDateTime(null),
-            TodoProperty.EndDateTime(null)
+            TodoProperty.StartDateTime(startDateTime),
+            TodoProperty.EndDateTime(endDateTime)
         )
     }
 
-    private fun updateTitle(properties: List<TodoProperty>, title: String): List<TodoProperty> {
-        var hasTitle = false
-        val updated = properties.map { property ->
-            if (property is TodoProperty.Title) {
-                hasTitle = true
-                TodoProperty.Title(title)
-            } else {
-                property
-            }
+    private fun updateProperties(
+        properties: List<TodoProperty>,
+        title: String,
+        startDateTime: LocalDateTime?,
+        endDateTime: LocalDateTime?
+    ): List<TodoProperty> {
+        val remaining = properties.filterNot { property ->
+            property is TodoProperty.Title ||
+                property is TodoProperty.StartDateTime ||
+                property is TodoProperty.EndDateTime
         }
-        return if (hasTitle) {
-            updated
-        } else {
-            listOf(TodoProperty.Title(title)) + updated
-        }
+        return listOf(
+            TodoProperty.Title(title),
+            TodoProperty.StartDateTime(startDateTime),
+            TodoProperty.EndDateTime(endDateTime)
+        ) + remaining
     }
 
-    fun addTodo(text: String) {
+    fun addTodo(text: String, startDateTime: LocalDateTime?, endDateTime: LocalDateTime?) {
         val trimmedText = text.trim()
         if (trimmedText.isEmpty()) {
             return
@@ -44,7 +50,7 @@ class TodoViewModel : ViewModel() {
 
         val newTodo = Todo(
             id = UUID.randomUUID().toString(),
-            properties = buildProperties(trimmedText),
+            properties = buildProperties(trimmedText, startDateTime, endDateTime),
             isCompleted = false
         )
 
@@ -63,7 +69,12 @@ class TodoViewModel : ViewModel() {
         }
     }
 
-    fun updateTodo(id: String, newText: String) {
+    fun updateTodo(
+        id: String,
+        newText: String,
+        startDateTime: LocalDateTime?,
+        endDateTime: LocalDateTime?
+    ) {
         val trimmedText = newText.trim()
         if (trimmedText.isEmpty()) {
             return
@@ -72,7 +83,14 @@ class TodoViewModel : ViewModel() {
         val currentList = _todos.value ?: return
         _todos.value = currentList.map { todo ->
             if (todo.id == id) {
-                todo.copy(properties = updateTitle(todo.properties, trimmedText))
+                todo.copy(
+                    properties = updateProperties(
+                        todo.properties,
+                        trimmedText,
+                        startDateTime,
+                        endDateTime
+                    )
+                )
             } else {
                 todo
             }

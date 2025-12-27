@@ -17,4 +17,10 @@ data class Todo(
 ) {
     val title: String
         get() = properties.filterIsInstance<TodoProperty.Title>().firstOrNull()?.value ?: ""
+
+    val startDateTime: LocalDateTime?
+        get() = properties.filterIsInstance<TodoProperty.StartDateTime>().firstOrNull()?.value
+
+    val endDateTime: LocalDateTime?
+        get() = properties.filterIsInstance<TodoProperty.EndDateTime>().firstOrNull()?.value
 }

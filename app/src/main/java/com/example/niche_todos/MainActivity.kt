@@ -2,15 +2,24 @@
 // Manages RecyclerView, ViewModel, and user interactions for todos
 package com.example.niche_todos
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.os.Bundle
+import android.text.format.DateFormat
 import android.view.View
-import android.widget.EditText
+import android.widget.Button
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.RecyclerView
 import android.widget.TextView
 import com.example.niche_todos.databinding.ActivityMainBinding
+import com.google.android.material.textfield.TextInputEditText
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -51,6 +60,40 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun formatDateTime(dateTime: LocalDateTime?): String {
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.US)
+        return dateTime?.format(formatter) ?: getString(R.string.date_time_not_set)
+    }
+
+    private fun showDateTimePicker(
+        initialDateTime: LocalDateTime?,
+        onSelected: (LocalDateTime) -> Unit
+    ) {
+        val seedDateTime = initialDateTime ?: LocalDateTime.now()
+        DatePickerDialog(
+            this,
+            { _, year, month, dayOfMonth ->
+                val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
+                TimePickerDialog(
+                    this,
+                    { _, hour, minute ->
+                        val selectedDateTime = LocalDateTime.of(
+                            selectedDate,
+                            LocalTime.of(hour, minute)
+                        )
+                        onSelected(selectedDateTime)
+                    },
+                    seedDateTime.hour,
+                    seedDateTime.minute,
+                    DateFormat.is24HourFormat(this)
+                ).show()
+            },
+            seedDateTime.year,
+            seedDateTime.monthValue - 1,
+            seedDateTime.dayOfMonth
+        ).show()
+    }
+
     private fun updateEmptyState(isEmpty: Boolean) {
         if (isEmpty) {
             recyclerView.visibility = View.GONE
@@ -62,17 +105,40 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAddDialog() {
-        val editText = EditText(this).apply {
-            hint = getString(R.string.todo_hint)
+        val dialogView = layoutInflater.inflate(R.layout.dialog_todo, null)
+        val titleInput: TextInputEditText = dialogView.findViewById(R.id.input_title)
+        val startButton: Button = dialogView.findViewById(R.id.button_start)
+        val endButton: Button = dialogView.findViewById(R.id.button_end)
+        val startValue: TextView = dialogView.findViewById(R.id.text_start_value)
+        val endValue: TextView = dialogView.findViewById(R.id.text_end_value)
+
+        var startDateTime: LocalDateTime? = null
+        var endDateTime: LocalDateTime? = null
+
+        startValue.text = formatDateTime(startDateTime)
+        endValue.text = formatDateTime(endDateTime)
+
+        startButton.setOnClickListener {
+            showDateTimePicker(startDateTime) { selected ->
+                startDateTime = selected
+                startValue.text = formatDateTime(selected)
+            }
+        }
+
+        endButton.setOnClickListener {
+            showDateTimePicker(endDateTime) { selected ->
+                endDateTime = selected
+                endValue.text = formatDateTime(selected)
+            }
         }
 
         AlertDialog.Builder(this)
             .setTitle(R.string.add_todo)
-            .setView(editText)
+            .setView(dialogView)
             .setPositiveButton(R.string.save) { _, _ ->
-                val text = editText.text.toString()
+                val text = titleInput.text.toString()
                 if (text.isNotBlank()) {
-                    viewModel.addTodo(text)
+                    viewModel.addTodo(text, startDateTime, endDateTime)
                 }
             }
             .setNegativeButton(R.string.cancel, null)
@@ -80,18 +146,41 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showEditDialog(todo: Todo) {
-        val editText = EditText(this).apply {
-            setText(todo.title)
-            hint = getString(R.string.todo_hint)
+        val dialogView = layoutInflater.inflate(R.layout.dialog_todo, null)
+        val titleInput: TextInputEditText = dialogView.findViewById(R.id.input_title)
+        val startButton: Button = dialogView.findViewById(R.id.button_start)
+        val endButton: Button = dialogView.findViewById(R.id.button_end)
+        val startValue: TextView = dialogView.findViewById(R.id.text_start_value)
+        val endValue: TextView = dialogView.findViewById(R.id.text_end_value)
+
+        var startDateTime: LocalDateTime? = todo.startDateTime
+        var endDateTime: LocalDateTime? = todo.endDateTime
+
+        titleInput.setText(todo.title)
+        startValue.text = formatDateTime(startDateTime)
+        endValue.text = formatDateTime(endDateTime)
+
+        startButton.setOnClickListener {
+            showDateTimePicker(startDateTime) { selected ->
+                startDateTime = selected
+                startValue.text = formatDateTime(selected)
+            }
+        }
+
+        endButton.setOnClickListener {
+            showDateTimePicker(endDateTime) { selected ->
+                endDateTime = selected
+                endValue.text = formatDateTime(selected)
+            }
         }
 
         AlertDialog.Builder(this)
             .setTitle(R.string.edit_todo)
-            .setView(editText)
+            .setView(dialogView)
             .setPositiveButton(R.string.save) { _, _ ->
-                val text = editText.text.toString()
+                val text = titleInput.text.toString()
                 if (text.isNotBlank()) {
-                    viewModel.updateTodo(todo.id, text)
+                    viewModel.updateTodo(todo.id, text, startDateTime, endDateTime)
                 }
             }
             .setNegativeButton(R.string.cancel, null)

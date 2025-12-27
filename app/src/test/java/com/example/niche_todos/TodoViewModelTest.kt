@@ -7,6 +7,7 @@ import androidx.lifecycle.Observer
 import org.junit.Rule
 import org.junit.Test
 import org.junit.Assert.*
+import java.time.LocalDateTime
 
 class TodoViewModelTest {
     @get:Rule
@@ -16,17 +17,21 @@ class TodoViewModelTest {
     fun addTodo_addsToList() {
         val viewModel = TodoViewModel()
         val observer = Observer<List<Todo>> {}
+        val startDateTime = LocalDateTime.of(2025, 3, 1, 8, 0)
+        val endDateTime = LocalDateTime.of(2025, 3, 1, 9, 0)
 
         try {
             viewModel.todos.observeForever(observer)
 
-            viewModel.addTodo("Buy milk")
+            viewModel.addTodo("Buy milk", startDateTime, endDateTime)
 
             val todos = viewModel.todos.value
             assertNotNull(todos)
             assertEquals(1, todos?.size)
             val todo = todos?.get(0)
             assertEquals("Buy milk", todo?.title)
+            assertEquals(startDateTime, todo?.startDateTime)
+            assertEquals(endDateTime, todo?.endDateTime)
             assertEquals(false, todo?.isCompleted)
             assertNotNull(todo?.id)
             assertEquals(1, todo?.properties?.filterIsInstance<TodoProperty.Title>()?.size)
@@ -45,8 +50,8 @@ class TodoViewModelTest {
         try {
             viewModel.todos.observeForever(observer)
 
-            viewModel.addTodo("")
-            viewModel.addTodo("   ")
+            viewModel.addTodo("", null, null)
+            viewModel.addTodo("   ", null, null)
 
             val todos = viewModel.todos.value
             assertNotNull(todos)
@@ -64,9 +69,9 @@ class TodoViewModelTest {
         try {
             viewModel.todos.observeForever(observer)
 
-            viewModel.addTodo("First")
-            viewModel.addTodo("Second")
-            viewModel.addTodo("Third")
+            viewModel.addTodo("First", null, null)
+            viewModel.addTodo("Second", null, null)
+            viewModel.addTodo("Third", null, null)
 
             val todos = viewModel.todos.value
             assertEquals(3, todos?.size)
@@ -86,7 +91,7 @@ class TodoViewModelTest {
         try {
             viewModel.todos.observeForever(observer)
 
-            viewModel.addTodo("Test task")
+            viewModel.addTodo("Test task", null, null)
             val todoId = viewModel.todos.value?.get(0)?.id ?: ""
 
             viewModel.toggleComplete(todoId)
@@ -107,7 +112,7 @@ class TodoViewModelTest {
         try {
             viewModel.todos.observeForever(observer)
 
-            viewModel.addTodo("Test task")
+            viewModel.addTodo("Test task", null, null)
             val originalTodo = viewModel.todos.value?.get(0)
 
             viewModel.toggleComplete("invalid-id-999")
@@ -127,9 +132,9 @@ class TodoViewModelTest {
         try {
             viewModel.todos.observeForever(observer)
 
-            viewModel.addTodo("First")
-            viewModel.addTodo("Second")
-            viewModel.addTodo("Third")
+            viewModel.addTodo("First", null, null)
+            viewModel.addTodo("Second", null, null)
+            viewModel.addTodo("Third", null, null)
 
             val secondId = viewModel.todos.value?.get(1)?.id ?: ""
             viewModel.toggleComplete(secondId)
@@ -147,17 +152,21 @@ class TodoViewModelTest {
     fun updateTodo_updatesText() {
         val viewModel = TodoViewModel()
         val observer = Observer<List<Todo>> {}
+        val startDateTime = LocalDateTime.of(2025, 4, 10, 13, 15)
+        val endDateTime = LocalDateTime.of(2025, 4, 10, 14, 45)
 
         try {
             viewModel.todos.observeForever(observer)
 
-            viewModel.addTodo("Original text")
+            viewModel.addTodo("Original text", null, null)
             val todoId = viewModel.todos.value?.get(0)?.id ?: ""
 
-            viewModel.updateTodo(todoId, "Updated text")
+            viewModel.updateTodo(todoId, "Updated text", startDateTime, endDateTime)
 
             val updatedTodo = viewModel.todos.value?.get(0)
             assertEquals("Updated text", updatedTodo?.title)
+            assertEquals(startDateTime, updatedTodo?.startDateTime)
+            assertEquals(endDateTime, updatedTodo?.endDateTime)
             assertEquals(todoId, updatedTodo?.id)
             assertEquals(false, updatedTodo?.isCompleted)
         } finally {
@@ -169,18 +178,26 @@ class TodoViewModelTest {
     fun updateTodo_emptyText_notUpdated() {
         val viewModel = TodoViewModel()
         val observer = Observer<List<Todo>> {}
+        val originalStartDateTime = LocalDateTime.of(2025, 4, 11, 9, 0)
+        val originalEndDateTime = LocalDateTime.of(2025, 4, 11, 10, 0)
+        val updatedStartDateTime = LocalDateTime.of(2025, 4, 12, 11, 0)
+        val updatedEndDateTime = LocalDateTime.of(2025, 4, 12, 12, 0)
 
         try {
             viewModel.todos.observeForever(observer)
 
-            viewModel.addTodo("Original")
+            viewModel.addTodo("Original", originalStartDateTime, originalEndDateTime)
             val todoId = viewModel.todos.value?.get(0)?.id ?: ""
 
-            viewModel.updateTodo(todoId, "")
+            viewModel.updateTodo(todoId, "", updatedStartDateTime, updatedEndDateTime)
             assertEquals("Original", viewModel.todos.value?.get(0)?.title)
+            assertEquals(originalStartDateTime, viewModel.todos.value?.get(0)?.startDateTime)
+            assertEquals(originalEndDateTime, viewModel.todos.value?.get(0)?.endDateTime)
 
-            viewModel.updateTodo(todoId, "   ")
+            viewModel.updateTodo(todoId, "   ", updatedStartDateTime, updatedEndDateTime)
             assertEquals("Original", viewModel.todos.value?.get(0)?.title)
+            assertEquals(originalStartDateTime, viewModel.todos.value?.get(0)?.startDateTime)
+            assertEquals(originalEndDateTime, viewModel.todos.value?.get(0)?.endDateTime)
         } finally {
             viewModel.todos.removeObserver(observer)
         }
@@ -190,14 +207,16 @@ class TodoViewModelTest {
     fun updateTodo_invalidId_noChange() {
         val viewModel = TodoViewModel()
         val observer = Observer<List<Todo>> {}
+        val startDateTime = LocalDateTime.of(2025, 4, 13, 15, 0)
+        val endDateTime = LocalDateTime.of(2025, 4, 13, 16, 0)
 
         try {
             viewModel.todos.observeForever(observer)
 
-            viewModel.addTodo("Test")
+            viewModel.addTodo("Test", null, null)
             val originalTodo = viewModel.todos.value?.get(0)
 
-            viewModel.updateTodo("invalid-id", "Changed")
+            viewModel.updateTodo("invalid-id", "Changed", startDateTime, endDateTime)
 
             assertEquals(originalTodo, viewModel.todos.value?.get(0))
         } finally {
@@ -209,18 +228,22 @@ class TodoViewModelTest {
     fun updateTodo_preservesCompletionStatus() {
         val viewModel = TodoViewModel()
         val observer = Observer<List<Todo>> {}
+        val startDateTime = LocalDateTime.of(2025, 4, 14, 8, 30)
+        val endDateTime = LocalDateTime.of(2025, 4, 14, 9, 30)
 
         try {
             viewModel.todos.observeForever(observer)
 
-            viewModel.addTodo("Task")
+            viewModel.addTodo("Task", null, null)
             val todoId = viewModel.todos.value?.get(0)?.id ?: ""
             viewModel.toggleComplete(todoId)
 
-            viewModel.updateTodo(todoId, "Updated task")
+            viewModel.updateTodo(todoId, "Updated task", startDateTime, endDateTime)
 
             val todo = viewModel.todos.value?.get(0)
             assertEquals("Updated task", todo?.title)
+            assertEquals(startDateTime, todo?.startDateTime)
+            assertEquals(endDateTime, todo?.endDateTime)
             assertEquals(true, todo?.isCompleted)
         } finally {
             viewModel.todos.removeObserver(observer)
@@ -235,7 +258,7 @@ class TodoViewModelTest {
         try {
             viewModel.todos.observeForever(observer)
 
-            viewModel.addTodo("Test task")
+            viewModel.addTodo("Test task", null, null)
             assertEquals(1, viewModel.todos.value?.size)
 
             val todoId = viewModel.todos.value?.get(0)?.id ?: ""
@@ -255,8 +278,8 @@ class TodoViewModelTest {
         try {
             viewModel.todos.observeForever(observer)
 
-            viewModel.addTodo("Test")
-            viewModel.addTodo("Test 2")
+            viewModel.addTodo("Test", null, null)
+            viewModel.addTodo("Test 2", null, null)
             assertEquals(2, viewModel.todos.value?.size)
 
             viewModel.deleteTodo("invalid-id")
@@ -275,9 +298,9 @@ class TodoViewModelTest {
         try {
             viewModel.todos.observeForever(observer)
 
-            viewModel.addTodo("First")
-            viewModel.addTodo("Second")
-            viewModel.addTodo("Third")
+            viewModel.addTodo("First", null, null)
+            viewModel.addTodo("Second", null, null)
+            viewModel.addTodo("Third", null, null)
 
             val secondId = viewModel.todos.value?.get(1)?.id ?: ""
             viewModel.deleteTodo(secondId)
