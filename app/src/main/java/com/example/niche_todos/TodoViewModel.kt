@@ -5,13 +5,44 @@ package com.example.niche_todos
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import java.time.LocalDateTime
 import java.util.UUID
 
 class TodoViewModel : ViewModel() {
     private val _todos = MutableLiveData<List<Todo>>(emptyList())
     val todos: LiveData<List<Todo>> = _todos
 
-    fun addTodo(text: String) {
+    private fun buildProperties(
+        title: String,
+        startDateTime: LocalDateTime?,
+        endDateTime: LocalDateTime?
+    ): List<TodoProperty> {
+        return listOf(
+            TodoProperty.Title(title),
+            TodoProperty.StartDateTime(startDateTime),
+            TodoProperty.EndDateTime(endDateTime)
+        )
+    }
+
+    private fun updateProperties(
+        properties: List<TodoProperty>,
+        title: String,
+        startDateTime: LocalDateTime?,
+        endDateTime: LocalDateTime?
+    ): List<TodoProperty> {
+        val remaining = properties.filterNot { property ->
+            property is TodoProperty.Title ||
+                property is TodoProperty.StartDateTime ||
+                property is TodoProperty.EndDateTime
+        }
+        return listOf(
+            TodoProperty.Title(title),
+            TodoProperty.StartDateTime(startDateTime),
+            TodoProperty.EndDateTime(endDateTime)
+        ) + remaining
+    }
+
+    fun addTodo(text: String, startDateTime: LocalDateTime?, endDateTime: LocalDateTime?) {
         val trimmedText = text.trim()
         if (trimmedText.isEmpty()) {
             return
@@ -19,7 +50,7 @@ class TodoViewModel : ViewModel() {
 
         val newTodo = Todo(
             id = UUID.randomUUID().toString(),
-            text = trimmedText,
+            properties = buildProperties(trimmedText, startDateTime, endDateTime),
             isCompleted = false
         )
 
@@ -38,7 +69,12 @@ class TodoViewModel : ViewModel() {
         }
     }
 
-    fun updateTodo(id: String, newText: String) {
+    fun updateTodo(
+        id: String,
+        newText: String,
+        startDateTime: LocalDateTime?,
+        endDateTime: LocalDateTime?
+    ) {
         val trimmedText = newText.trim()
         if (trimmedText.isEmpty()) {
             return
@@ -47,7 +83,14 @@ class TodoViewModel : ViewModel() {
         val currentList = _todos.value ?: return
         _todos.value = currentList.map { todo ->
             if (todo.id == id) {
-                todo.copy(text = trimmedText)
+                todo.copy(
+                    properties = updateProperties(
+                        todo.properties,
+                        trimmedText,
+                        startDateTime,
+                        endDateTime
+                    )
+                )
             } else {
                 todo
             }
