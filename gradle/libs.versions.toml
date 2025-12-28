@@ -1,3 +1,5 @@
+# ABOUTME: Centralized version catalog for Gradle dependencies and plugins.
+# ABOUTME: Defines shared version numbers and aliases for modules in this app.
 [versions]
 agp = "8.13.2"
 kotlin = "2.0.21"
