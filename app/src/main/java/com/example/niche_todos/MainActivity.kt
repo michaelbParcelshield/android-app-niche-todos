@@ -13,12 +13,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.RecyclerView
 import android.widget.TextView
+import android.widget.Toast
 import com.example.niche_todos.databinding.ActivityMainBinding
 import com.google.android.material.textfield.TextInputEditText
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.ZoneId
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
@@ -67,10 +69,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun showDateTimePicker(
         initialDateTime: LocalDateTime?,
+        minDateTime: LocalDateTime? = null,
         onSelected: (LocalDateTime) -> Unit
     ) {
-        val seedDateTime = initialDateTime ?: LocalDateTime.now()
-        DatePickerDialog(
+        val seedDateTime = initialDateTime ?: minDateTime ?: LocalDateTime.now()
+        val datePickerDialog = DatePickerDialog(
             this,
             { _, year, month, dayOfMonth ->
                 val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
@@ -81,7 +84,16 @@ class MainActivity : AppCompatActivity() {
                             selectedDate,
                             LocalTime.of(hour, minute)
                         )
-                        onSelected(selectedDateTime)
+                        if (minDateTime != null && selectedDateTime.isBefore(minDateTime)) {
+                            Toast.makeText(
+                                this,
+                                R.string.end_before_start_error,
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            showDateTimePicker(minDateTime, minDateTime, onSelected)
+                        } else {
+                            onSelected(selectedDateTime)
+                        }
                     },
                     seedDateTime.hour,
                     seedDateTime.minute,
@@ -91,7 +103,16 @@ class MainActivity : AppCompatActivity() {
             seedDateTime.year,
             seedDateTime.monthValue - 1,
             seedDateTime.dayOfMonth
-        ).show()
+        )
+        minDateTime?.let { min ->
+            val minDateMillis = min.toLocalDate()
+                .atStartOfDay()
+                .atZone(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+            datePickerDialog.datePicker.minDate = minDateMillis
+        }
+        datePickerDialog.show()
     }
 
     private fun updateEmptyState(isEmpty: Boolean) {
@@ -112,21 +133,33 @@ class MainActivity : AppCompatActivity() {
         val startValue: TextView = dialogView.findViewById(R.id.text_start_value)
         val endValue: TextView = dialogView.findViewById(R.id.text_end_value)
 
-        var startDateTime: LocalDateTime? = null
-        var endDateTime: LocalDateTime? = null
+        val today = LocalDate.now()
+        val defaultStart = today.atStartOfDay()
+        val defaultEnd = LocalDateTime.of(today, LocalTime.of(23, 59))
+
+        var startDateTime: LocalDateTime? = defaultStart
+        var endDateTime: LocalDateTime? = defaultEnd
 
         startValue.text = formatDateTime(startDateTime)
         endValue.text = formatDateTime(endDateTime)
 
         startButton.setOnClickListener {
+            val previousStart = startDateTime
+            val previousEnd = endDateTime
             showDateTimePicker(startDateTime) { selected ->
                 startDateTime = selected
                 startValue.text = formatDateTime(selected)
+                endDateTime = DateRangeAdjuster.shiftEndKeepingDuration(
+                    previousStart,
+                    previousEnd,
+                    selected
+                )
+                endValue.text = formatDateTime(endDateTime)
             }
         }
 
         endButton.setOnClickListener {
-            showDateTimePicker(endDateTime) { selected ->
+            showDateTimePicker(endDateTime ?: startDateTime, minDateTime = startDateTime) { selected ->
                 endDateTime = selected
                 endValue.text = formatDateTime(selected)
             }
@@ -161,14 +194,22 @@ class MainActivity : AppCompatActivity() {
         endValue.text = formatDateTime(endDateTime)
 
         startButton.setOnClickListener {
+            val previousStart = startDateTime
+            val previousEnd = endDateTime
             showDateTimePicker(startDateTime) { selected ->
                 startDateTime = selected
                 startValue.text = formatDateTime(selected)
+                endDateTime = DateRangeAdjuster.shiftEndKeepingDuration(
+                    previousStart,
+                    previousEnd,
+                    selected
+                )
+                endValue.text = formatDateTime(endDateTime)
             }
         }
 
         endButton.setOnClickListener {
-            showDateTimePicker(endDateTime) { selected ->
+            showDateTimePicker(endDateTime ?: startDateTime, minDateTime = startDateTime) { selected ->
                 endDateTime = selected
                 endValue.text = formatDateTime(selected)
             }
