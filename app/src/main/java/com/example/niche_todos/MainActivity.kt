@@ -134,7 +134,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.add_todo)
             .setView(dialogView)
             .setPositiveButton(R.string.save) { _, _ ->
@@ -144,7 +144,15 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .create()
+
+        TitleInputFocusController(
+            AlertDialogOnShowRegistrar(dialog),
+            TextInputFocusActions(titleInput),
+            AlertDialogSoftInputVisibilityController(dialog)
+        ).selectTitle(selectAllExistingText = false)
+
+        dialog.show()
     }
 
     private fun showEditDialog(todo: Todo) {
@@ -176,7 +184,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.edit_todo)
             .setView(dialogView)
             .setPositiveButton(R.string.save) { _, _ ->
@@ -186,7 +194,15 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .create()
+
+        TitleInputFocusController(
+            AlertDialogOnShowRegistrar(dialog),
+            TextInputFocusActions(titleInput),
+            AlertDialogSoftInputVisibilityController(dialog)
+        ).selectTitle(selectAllExistingText = true)
+
+        dialog.show()
     }
 
     private fun attachDragToReorder() {
