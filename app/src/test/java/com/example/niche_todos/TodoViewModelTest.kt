@@ -313,4 +313,99 @@ class TodoViewModelTest {
             viewModel.todos.removeObserver(observer)
         }
     }
+
+    @Test
+    fun moveTodo_validIndices_reordersList() {
+        val viewModel = TodoViewModel()
+        val observer = Observer<List<Todo>> {}
+
+        try {
+            viewModel.todos.observeForever(observer)
+
+            viewModel.addTodo("One", null, null)
+            viewModel.addTodo("Two", null, null)
+            viewModel.addTodo("Three", null, null)
+
+            viewModel.moveTodo(0, 2)
+
+            val todos = viewModel.todos.value
+            assertEquals("Two", todos?.get(0)?.title)
+            assertEquals("Three", todos?.get(1)?.title)
+            assertEquals("One", todos?.get(2)?.title)
+        } finally {
+            viewModel.todos.removeObserver(observer)
+        }
+    }
+
+    @Test
+    fun moveTodo_invalidIndex_noChange() {
+        val viewModel = TodoViewModel()
+        val observer = Observer<List<Todo>> {}
+
+        try {
+            viewModel.todos.observeForever(observer)
+
+            viewModel.addTodo("Alpha", null, null)
+            viewModel.addTodo("Beta", null, null)
+
+            val original = viewModel.todos.value
+
+            viewModel.moveTodo(-1, 1)
+            assertEquals(original, viewModel.todos.value)
+
+            viewModel.moveTodo(0, 5)
+            assertEquals(original, viewModel.todos.value)
+        } finally {
+            viewModel.todos.removeObserver(observer)
+        }
+    }
+
+    @Test
+    fun reorderTodos_matchingIds_updatesOrder() {
+        val viewModel = TodoViewModel()
+        val observer = Observer<List<Todo>> {}
+
+        try {
+            viewModel.todos.observeForever(observer)
+
+            viewModel.addTodo("One", null, null)
+            viewModel.addTodo("Two", null, null)
+            viewModel.addTodo("Three", null, null)
+
+            val reversed = viewModel.todos.value?.reversed() ?: emptyList()
+            viewModel.reorderTodos(reversed)
+
+            val todos = viewModel.todos.value
+            assertEquals("Three", todos?.get(0)?.title)
+            assertEquals("Two", todos?.get(1)?.title)
+            assertEquals("One", todos?.get(2)?.title)
+        } finally {
+            viewModel.todos.removeObserver(observer)
+        }
+    }
+
+    @Test
+    fun reorderTodos_mismatchedIds_noChange() {
+        val viewModel = TodoViewModel()
+        val observer = Observer<List<Todo>> {}
+
+        try {
+            viewModel.todos.observeForever(observer)
+
+            viewModel.addTodo("First", null, null)
+            viewModel.addTodo("Second", null, null)
+
+            val fakeList = listOf(
+                Todo("custom-1", emptyList(), false),
+                Todo("custom-2", emptyList(), false)
+            )
+            val original = viewModel.todos.value
+
+            viewModel.reorderTodos(fakeList)
+
+            assertEquals(original, viewModel.todos.value)
+        } finally {
+            viewModel.todos.removeObserver(observer)
+        }
+    }
 }
