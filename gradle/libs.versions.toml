@@ -1,3 +1,5 @@
+# ABOUTME: Centralized version catalog for Gradle dependencies and plugins.
+# ABOUTME: Defines shared version numbers and aliases for modules in this app.
 [versions]
 agp = "8.13.2"
 kotlin = "2.0.21"
@@ -10,6 +12,7 @@ material = "1.10.0"
 constraintlayout = "2.1.4"
 navigationFragmentKtx = "2.6.0"
 navigationUiKtx = "2.6.0"
+archCoreTesting = "2.2.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -21,8 +24,8 @@ material = { group = "com.google.android.material", name = "material", version.r
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 androidx-navigation-fragment-ktx = { group = "androidx.navigation", name = "navigation-fragment-ktx", version.ref = "navigationFragmentKtx" }
 androidx-navigation-ui-ktx = { group = "androidx.navigation", name = "navigation-ui-ktx", version.ref = "navigationUiKtx" }
+androidx-arch-core-testing = { group = "androidx.arch.core", name = "core-testing", version.ref = "archCoreTesting" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-

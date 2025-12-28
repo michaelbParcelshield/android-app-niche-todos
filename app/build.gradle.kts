@@ -1,3 +1,5 @@
+// ABOUTME: Android app module build configuration and dependency declarations.
+// ABOUTME: Defines SDK levels, build types, and test dependencies for the app.
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -48,6 +50,7 @@ dependencies {
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
     testImplementation(libs.junit)
+    testImplementation(libs.androidx.arch.core.testing)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }
