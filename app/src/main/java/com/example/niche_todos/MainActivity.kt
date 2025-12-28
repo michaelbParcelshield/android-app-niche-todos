@@ -5,6 +5,8 @@ package com.example.niche_todos
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.text.format.DateFormat
 import android.view.View
 import android.widget.Button
@@ -132,7 +134,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.add_todo)
             .setView(dialogView)
             .setPositiveButton(R.string.save) { _, _ ->
@@ -142,7 +144,13 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.configureSaveButtonState(titleInput)
+        }
+
+        dialog.show()
     }
 
     private fun showEditDialog(todo: Todo) {
@@ -174,7 +182,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.edit_todo)
             .setView(dialogView)
             .setPositiveButton(R.string.save) { _, _ ->
@@ -184,6 +192,32 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton(R.string.cancel, null)
-            .show()
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.configureSaveButtonState(titleInput)
+        }
+
+        dialog.show()
+
+    }
+
+    private fun AlertDialog.configureSaveButtonState(titleInput: TextInputEditText) {
+        val saveButton = getButton(AlertDialog.BUTTON_POSITIVE)
+        fun updateState() {
+            saveButton.isEnabled = TodoTitleValidator.isValid(titleInput.text)
+        }
+        updateState()
+        val watcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                updateState()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        }
+        titleInput.addTextChangedListener(watcher)
+        setOnDismissListener {
+            titleInput.removeTextChangedListener(watcher)
+        }
     }
 }
