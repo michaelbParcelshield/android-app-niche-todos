@@ -39,12 +39,28 @@ class TodoAdapter(
     inner class TodoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val checkBox: CheckBox = itemView.findViewById(R.id.checkbox_completed)
         private val textView: TextView = itemView.findViewById(R.id.text_todo)
+        private val startDateView: TextView = itemView.findViewById(R.id.text_start_date)
+        private val endDateView: TextView = itemView.findViewById(R.id.text_end_date)
         private val editButton: ImageButton = itemView.findViewById(R.id.button_edit)
         private val deleteButton: ImageButton = itemView.findViewById(R.id.button_delete)
+        private val dateTimeFormatter = TodoDateTimeFormatter()
 
         fun bind(todo: Todo) {
             textView.text = todo.title
             checkBox.isChecked = todo.isCompleted
+            val notSetLabel = itemView.context.getString(R.string.date_time_not_set)
+            val startLabel = itemView.context.getString(R.string.start_date_time)
+            val endLabel = itemView.context.getString(R.string.end_date_time)
+            startDateView.text = dateTimeFormatter.formatLabel(
+                startLabel,
+                todo.startDateTime,
+                notSetLabel
+            )
+            endDateView.text = dateTimeFormatter.formatLabel(
+                endLabel,
+                todo.endDateTime,
+                notSetLabel
+            )
 
             // Apply strikethrough when completed
             if (todo.isCompleted) {
