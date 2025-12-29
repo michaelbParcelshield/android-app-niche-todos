@@ -75,32 +75,61 @@ class MainActivity : AppCompatActivity() {
         onSelected: (LocalDateTime) -> Unit
     ) {
         val seedDateTime = initialDateTime ?: minDateTime ?: LocalDateTime.now()
+
+        fun resolvedSeedTimeForDate(selectedDate: LocalDate): LocalTime {
+            val baseSeedTime = seedDateTime.toLocalTime()
+            val minTime = if (minDateTime != null && selectedDate == minDateTime.toLocalDate()) {
+                minDateTime.toLocalTime()
+            } else {
+                null
+            }
+            return if (minTime != null && baseSeedTime.isBefore(minTime)) {
+                minTime
+            } else {
+                baseSeedTime
+            }
+        }
+
+        fun showTimePicker(selectedDate: LocalDate, seedTime: LocalTime) {
+            TimePickerDialog(
+                this,
+                { _, hour, minute ->
+                    val selectedDateTime = LocalDateTime.of(
+                        selectedDate,
+                        LocalTime.of(hour, minute)
+                    )
+                    when (val validation = DateTimeSelectionValidator.validate(
+                        selectedDateTime,
+                        minDateTime
+                    )) {
+                        is DateTimeSelectionValidator.ValidationResult.Valid -> {
+                            onSelected(validation.dateTime)
+                        }
+
+                        is DateTimeSelectionValidator.ValidationResult.Invalid -> {
+                            showEndBeforeStartError()
+                            val retrySeed = if (
+                                validation.minimumDateTime.toLocalDate() == selectedDate
+                            ) {
+                                validation.minimumDateTime.toLocalTime()
+                            } else {
+                                seedTime
+                            }
+                            showTimePicker(selectedDate, retrySeed)
+                        }
+                    }
+                },
+                seedTime.hour,
+                seedTime.minute,
+                DateFormat.is24HourFormat(this)
+            ).show()
+        }
+
         val datePickerDialog = DatePickerDialog(
             this,
             { _, year, month, dayOfMonth ->
                 val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
-                TimePickerDialog(
-                    this,
-                    { _, hour, minute ->
-                        val selectedDateTime = LocalDateTime.of(
-                            selectedDate,
-                            LocalTime.of(hour, minute)
-                        )
-                        if (minDateTime != null && selectedDateTime.isBefore(minDateTime)) {
-                            Toast.makeText(
-                                this,
-                                R.string.end_before_start_error,
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            showDateTimePicker(minDateTime, minDateTime, onSelected)
-                        } else {
-                            onSelected(selectedDateTime)
-                        }
-                    },
-                    seedDateTime.hour,
-                    seedDateTime.minute,
-                    DateFormat.is24HourFormat(this)
-                ).show()
+                showTimePicker(selectedDate, resolvedSeedTimeForDate(selectedDate))
             },
             seedDateTime.year,
             seedDateTime.monthValue - 1,
@@ -115,6 +144,14 @@ class MainActivity : AppCompatActivity() {
             datePickerDialog.datePicker.minDate = minDateMillis
         }
         datePickerDialog.show()
+    }
+
+    private fun showEndBeforeStartError() {
+        Toast.makeText(
+            this,
+            R.string.end_before_start_error,
+            Toast.LENGTH_SHORT
+        ).show()
     }
 
     private fun setupStartButtonHandler(

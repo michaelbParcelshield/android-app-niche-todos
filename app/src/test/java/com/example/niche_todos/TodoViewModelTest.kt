@@ -96,7 +96,7 @@ class TodoViewModelTest {
 
             val todo = viewModel.todos.value?.first()
             val expectedStart = LocalDateTime.of(2025, 5, 1, 0, 0)
-            val expectedEnd = LocalDateTime.of(2025, 5, 1, 23, 59)
+            val expectedEnd = LocalDateTime.of(2025, 5, 1, 23, 59, 59)
             assertEquals(expectedStart, todo?.startDateTime)
             assertEquals(expectedEnd, todo?.endDateTime)
         } finally {
@@ -112,7 +112,7 @@ class TodoViewModelTest {
         val (start, end) = viewModel.defaultDateRange()
 
         val expectedStart = LocalDateTime.of(2026, 1, 5, 0, 0)
-        val expectedEnd = LocalDateTime.of(2026, 1, 5, 23, 59)
+        val expectedEnd = LocalDateTime.of(2026, 1, 5, 23, 59, 59)
         assertEquals(expectedStart, start)
         assertEquals(expectedEnd, end)
     }
@@ -129,7 +129,7 @@ class TodoViewModelTest {
             viewModel.addTodo("Task", startDateTime, null)
 
             val todo = viewModel.todos.value?.first()
-            val expectedEnd = LocalDateTime.of(2025, 6, 2, 23, 59)
+            val expectedEnd = LocalDateTime.of(2025, 6, 2, 23, 59, 59)
             assertEquals(startDateTime, todo?.startDateTime)
             assertEquals(expectedEnd, todo?.endDateTime)
         } finally {

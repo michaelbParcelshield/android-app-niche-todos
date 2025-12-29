@@ -51,6 +51,16 @@ class DateRangeAdjusterTest {
     }
 
     @Test
+    fun shiftEndAlignsWithNewStartWhenExistingEndBeforeNewStart() {
+        val previousEnd = LocalDateTime.of(2025, 7, 4, 8, 30)
+        val newStart = LocalDateTime.of(2025, 7, 4, 9, 0)
+
+        val adjustedEnd = DateRangeAdjuster.shiftEndKeepingDuration(null, previousEnd, newStart)
+
+        assertEquals(newStart, adjustedEnd)
+    }
+
+    @Test
     fun shiftEndDefaultsToNewStartWhenNoPreviousDatesExist() {
         val newStart = LocalDateTime.of(2025, 8, 15, 7, 30)
 

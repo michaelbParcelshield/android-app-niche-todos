@@ -7,7 +7,7 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 
 object TodoDateDefaults {
-    val END_OF_DAY_TIME: LocalTime = LocalTime.of(23, 59)
+    val END_OF_DAY_TIME: LocalTime = LocalTime.of(23, 59, 59)
 
     fun endOfDay(date: LocalDate): LocalDateTime = LocalDateTime.of(date, END_OF_DAY_TIME)
 }
