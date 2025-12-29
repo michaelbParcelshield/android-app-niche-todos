@@ -105,6 +105,19 @@ class TodoViewModelTest {
     }
 
     @Test
+    fun defaultDateRange_returnsCurrentDayBounds() {
+        val fixedNow = LocalDateTime.of(2026, 1, 5, 16, 45)
+        val viewModel = TodoViewModel(nowProvider = { fixedNow })
+
+        val (start, end) = viewModel.defaultDateRange()
+
+        val expectedStart = LocalDateTime.of(2026, 1, 5, 0, 0)
+        val expectedEnd = LocalDateTime.of(2026, 1, 5, 23, 59)
+        assertEquals(expectedStart, start)
+        assertEquals(expectedEnd, end)
+    }
+
+    @Test
     fun addTodo_startProvidedEndMissing_setsEndToEndOfDay() {
         val viewModel = TodoViewModel()
         val observer = Observer<List<Todo>> {}

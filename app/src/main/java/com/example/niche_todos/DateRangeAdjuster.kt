@@ -18,12 +18,13 @@ object DateRangeAdjuster {
                 newStart
             }
         }
-        val duration = if (previousEnd != null) {
-            Duration.between(previousStart, previousEnd)
-        } else {
-            Duration.ZERO
+        if (previousEnd == null) {
+            return newStart
         }
-        val safeDuration = if (duration.isNegative) Duration.ZERO else duration
-        return newStart.plus(safeDuration)
+        val duration = Duration.between(previousStart, previousEnd)
+        if (duration.isNegative) {
+            return newStart
+        }
+        return newStart.plus(duration)
     }
 }
