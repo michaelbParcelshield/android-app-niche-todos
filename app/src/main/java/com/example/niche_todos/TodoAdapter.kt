@@ -17,12 +17,27 @@ class TodoAdapter(
     private val onDelete: (String) -> Unit
 ) : RecyclerView.Adapter<TodoAdapter.TodoViewHolder>() {
 
-    private var todos: List<Todo> = emptyList()
+    private val todos: MutableList<Todo> = mutableListOf()
 
     fun submitList(newTodos: List<Todo>) {
-        todos = newTodos
+        todos.clear()
+        todos.addAll(newTodos)
         notifyDataSetChanged()
     }
+
+    fun moveItem(fromIndex: Int, toIndex: Int) {
+        if (fromIndex == toIndex ||
+            fromIndex !in todos.indices ||
+            toIndex !in todos.indices
+        ) {
+            return
+        }
+        val todo = todos.removeAt(fromIndex)
+        todos.add(toIndex, todo)
+        notifyItemMoved(fromIndex, toIndex)
+    }
+
+    fun currentItems(): List<Todo> = todos.toList()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TodoViewHolder {
         val view = LayoutInflater.from(parent.context)

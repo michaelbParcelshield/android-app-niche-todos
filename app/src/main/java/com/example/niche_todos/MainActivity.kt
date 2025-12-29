@@ -11,6 +11,7 @@ import android.widget.Button
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import android.widget.TextView
 import com.example.niche_todos.databinding.ActivityMainBinding
@@ -49,6 +50,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         recyclerView.adapter = adapter
+        attachDragToReorder()
 
         viewModel.todos.observe(this) { todos ->
             adapter.submitList(todos)
@@ -148,6 +150,12 @@ class MainActivity : AppCompatActivity() {
             dialog.configureSaveButtonState(titleInput)
         }
 
+        TitleInputFocusController(
+            AlertDialogOnShowRegistrar(dialog),
+            TextInputFocusActions(titleInput),
+            AlertDialogSoftInputVisibilityController(dialog)
+        ).selectTitle(selectAllExistingText = false)
+
         dialog.show()
     }
 
@@ -196,6 +204,49 @@ class MainActivity : AppCompatActivity() {
             dialog.configureSaveButtonState(titleInput)
         }
 
+        TitleInputFocusController(
+            AlertDialogOnShowRegistrar(dialog),
+            TextInputFocusActions(titleInput),
+            AlertDialogSoftInputVisibilityController(dialog)
+        ).selectTitle(selectAllExistingText = true)
+
         dialog.show()
+    }
+
+    private fun attachDragToReorder() {
+        val touchHelperCallback = object : ItemTouchHelper.SimpleCallback(
+            ItemTouchHelper.UP or ItemTouchHelper.DOWN,
+            0
+        ) {
+            override fun onMove(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean {
+                val fromPosition = viewHolder.adapterPosition
+                val toPosition = target.adapterPosition
+                if (fromPosition == RecyclerView.NO_POSITION ||
+                    toPosition == RecyclerView.NO_POSITION
+                ) {
+                    return false
+                }
+                adapter.moveItem(fromPosition, toPosition)
+                return true
+            }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                // Swipe disabled
+            }
+
+            override fun isLongPressDragEnabled(): Boolean = true
+
+            override fun isItemViewSwipeEnabled(): Boolean = false
+
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                viewModel.reorderTodos(adapter.currentItems())
+            }
+        }
+        ItemTouchHelper(touchHelperCallback).attachToRecyclerView(recyclerView)
     }
 }
