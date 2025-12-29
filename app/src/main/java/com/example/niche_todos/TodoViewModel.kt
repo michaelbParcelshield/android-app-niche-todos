@@ -8,9 +8,53 @@ import androidx.lifecycle.ViewModel
 import java.time.LocalDateTime
 import java.util.UUID
 
-class TodoViewModel : ViewModel() {
+class TodoViewModel(
+    private val nowProvider: () -> LocalDateTime = { LocalDateTime.now() }
+) : ViewModel() {
+
     private val _todos = MutableLiveData<List<Todo>>(emptyList())
     val todos: LiveData<List<Todo>> = _todos
+
+    private fun currentDayBounds(): Pair<LocalDateTime, LocalDateTime> {
+        val today = nowProvider().toLocalDate()
+        val startOfDay = today.atStartOfDay()
+        val endOfDay = TodoDateDefaults.endOfDay(today)
+        return startOfDay to endOfDay
+    }
+
+    fun defaultDateRange(): Pair<LocalDateTime, LocalDateTime> = currentDayBounds()
+
+    private fun prepareAddDates(
+        startDateTime: LocalDateTime?,
+        endDateTime: LocalDateTime?
+    ): Pair<LocalDateTime, LocalDateTime> {
+        val (defaultStart, defaultEnd) = currentDayBounds()
+        val resolvedStart = startDateTime ?: defaultStart
+        val resolvedEnd = when (endDateTime) {
+            null -> if (startDateTime != null) {
+                LocalDateTime.of(startDateTime.toLocalDate(), TodoDateDefaults.END_OF_DAY_TIME)
+            } else {
+                defaultEnd
+            }
+            else -> endDateTime
+        }
+        val adjustedEnd = if (resolvedEnd.isBefore(resolvedStart)) {
+            resolvedStart
+        } else {
+            resolvedEnd
+        }
+        return resolvedStart to adjustedEnd
+    }
+
+    private fun enforceEndAfterStart(
+        startDateTime: LocalDateTime?,
+        endDateTime: LocalDateTime?
+    ): Pair<LocalDateTime?, LocalDateTime?> {
+        if (startDateTime != null && endDateTime != null && endDateTime.isBefore(startDateTime)) {
+            return startDateTime to startDateTime
+        }
+        return startDateTime to endDateTime
+    }
 
     private fun buildProperties(
         title: String,
@@ -48,9 +92,11 @@ class TodoViewModel : ViewModel() {
             return
         }
 
+        val (resolvedStart, resolvedEnd) = prepareAddDates(startDateTime, endDateTime)
+
         val newTodo = Todo(
             id = UUID.randomUUID().toString(),
-            properties = buildProperties(trimmedText, startDateTime, endDateTime),
+            properties = buildProperties(trimmedText, resolvedStart, resolvedEnd),
             isCompleted = false
         )
 
@@ -80,6 +126,8 @@ class TodoViewModel : ViewModel() {
             return
         }
 
+        val (resolvedStart, resolvedEnd) = enforceEndAfterStart(startDateTime, endDateTime)
+
         val currentList = _todos.value ?: return
         _todos.value = currentList.map { todo ->
             if (todo.id == id) {
@@ -87,8 +135,8 @@ class TodoViewModel : ViewModel() {
                     properties = updateProperties(
                         todo.properties,
                         trimmedText,
-                        startDateTime,
-                        endDateTime
+                        resolvedStart,
+                        resolvedEnd
                     )
                 )
             } else {

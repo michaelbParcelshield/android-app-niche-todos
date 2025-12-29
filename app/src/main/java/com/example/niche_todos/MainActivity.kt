@@ -15,12 +15,14 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import android.widget.TextView
+import android.widget.Toast
 import com.example.niche_todos.databinding.ActivityMainBinding
 import com.google.android.material.textfield.TextInputEditText
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.ZoneId
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
@@ -70,31 +72,113 @@ class MainActivity : AppCompatActivity() {
 
     private fun showDateTimePicker(
         initialDateTime: LocalDateTime?,
+        minDateTime: LocalDateTime? = null,
         onSelected: (LocalDateTime) -> Unit
     ) {
-        val seedDateTime = initialDateTime ?: LocalDateTime.now()
-        DatePickerDialog(
+        val seedDateTime = initialDateTime ?: minDateTime ?: LocalDateTime.now()
+
+        fun resolvedSeedTimeForDate(selectedDate: LocalDate): LocalTime {
+            val baseSeedTime = seedDateTime.toLocalTime()
+            val minTime = if (minDateTime != null && selectedDate == minDateTime.toLocalDate()) {
+                minDateTime.toLocalTime()
+            } else {
+                null
+            }
+            return if (minTime != null && baseSeedTime.isBefore(minTime)) {
+                minTime
+            } else {
+                baseSeedTime
+            }
+        }
+
+        fun showTimePicker(selectedDate: LocalDate, seedTime: LocalTime) {
+            TimePickerDialog(
+                this,
+                { _, hour, minute ->
+                    val selectedDateTime = LocalDateTime.of(
+                        selectedDate,
+                        LocalTime.of(hour, minute)
+                    )
+                    when (val validation = DateTimeSelectionValidator.validate(
+                        selectedDateTime,
+                        minDateTime
+                    )) {
+                        is DateTimeSelectionValidator.ValidationResult.Valid -> {
+                            onSelected(validation.dateTime)
+                        }
+
+                        is DateTimeSelectionValidator.ValidationResult.Invalid -> {
+                            showEndBeforeStartError()
+                            val retrySeed = if (
+                                validation.minimumDateTime.toLocalDate() == selectedDate
+                            ) {
+                                validation.minimumDateTime.toLocalTime()
+                            } else {
+                                seedTime
+                            }
+                            showTimePicker(selectedDate, retrySeed)
+                        }
+                    }
+                },
+                seedTime.hour,
+                seedTime.minute,
+                DateFormat.is24HourFormat(this)
+            ).show()
+        }
+
+        val datePickerDialog = DatePickerDialog(
             this,
             { _, year, month, dayOfMonth ->
                 val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
-                TimePickerDialog(
-                    this,
-                    { _, hour, minute ->
-                        val selectedDateTime = LocalDateTime.of(
-                            selectedDate,
-                            LocalTime.of(hour, minute)
-                        )
-                        onSelected(selectedDateTime)
-                    },
-                    seedDateTime.hour,
-                    seedDateTime.minute,
-                    DateFormat.is24HourFormat(this)
-                ).show()
+                showTimePicker(selectedDate, resolvedSeedTimeForDate(selectedDate))
             },
             seedDateTime.year,
             seedDateTime.monthValue - 1,
             seedDateTime.dayOfMonth
+        )
+        minDateTime?.let { min ->
+            val minDateMillis = min.toLocalDate()
+                .atStartOfDay()
+                .atZone(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+            datePickerDialog.datePicker.minDate = minDateMillis
+        }
+        datePickerDialog.show()
+    }
+
+    private fun showEndBeforeStartError() {
+        Toast.makeText(
+            this,
+            R.string.end_before_start_error,
+            Toast.LENGTH_SHORT
         ).show()
+    }
+
+    private fun setupStartButtonHandler(
+        button: Button,
+        startValue: TextView,
+        endValue: TextView,
+        currentStart: () -> LocalDateTime?,
+        currentEnd: () -> LocalDateTime?,
+        onStartUpdated: (LocalDateTime) -> Unit,
+        onEndUpdated: (LocalDateTime) -> Unit
+    ) {
+        button.setOnClickListener {
+            val previousStart = currentStart()
+            val previousEnd = currentEnd()
+            showDateTimePicker(previousStart) { selected ->
+                onStartUpdated(selected)
+                startValue.text = formatDateTime(selected)
+                val adjustedEnd = DateRangeAdjuster.shiftEndKeepingDuration(
+                    previousStart,
+                    previousEnd,
+                    selected
+                )
+                onEndUpdated(adjustedEnd)
+                endValue.text = formatDateTime(adjustedEnd)
+            }
+        }
     }
 
     private fun updateEmptyState(isEmpty: Boolean) {
@@ -115,21 +199,26 @@ class MainActivity : AppCompatActivity() {
         val startValue: TextView = dialogView.findViewById(R.id.text_start_value)
         val endValue: TextView = dialogView.findViewById(R.id.text_end_value)
 
-        var startDateTime: LocalDateTime? = null
-        var endDateTime: LocalDateTime? = null
+        val (defaultStart, defaultEnd) = viewModel.defaultDateRange()
+
+        var startDateTime: LocalDateTime? = defaultStart
+        var endDateTime: LocalDateTime? = defaultEnd
 
         startValue.text = formatDateTime(startDateTime)
         endValue.text = formatDateTime(endDateTime)
 
-        startButton.setOnClickListener {
-            showDateTimePicker(startDateTime) { selected ->
-                startDateTime = selected
-                startValue.text = formatDateTime(selected)
-            }
-        }
+        setupStartButtonHandler(
+            startButton,
+            startValue,
+            endValue,
+            { startDateTime },
+            { endDateTime },
+            { startDateTime = it },
+            { endDateTime = it }
+        )
 
         endButton.setOnClickListener {
-            showDateTimePicker(endDateTime) { selected ->
+            showDateTimePicker(endDateTime ?: startDateTime, minDateTime = startDateTime) { selected ->
                 endDateTime = selected
                 endValue.text = formatDateTime(selected)
             }
@@ -170,15 +259,18 @@ class MainActivity : AppCompatActivity() {
         startValue.text = formatDateTime(startDateTime)
         endValue.text = formatDateTime(endDateTime)
 
-        startButton.setOnClickListener {
-            showDateTimePicker(startDateTime) { selected ->
-                startDateTime = selected
-                startValue.text = formatDateTime(selected)
-            }
-        }
+        setupStartButtonHandler(
+            startButton,
+            startValue,
+            endValue,
+            { startDateTime },
+            { endDateTime },
+            { startDateTime = it },
+            { endDateTime = it }
+        )
 
         endButton.setOnClickListener {
-            showDateTimePicker(endDateTime) { selected ->
+            showDateTimePicker(endDateTime ?: startDateTime, minDateTime = startDateTime) { selected ->
                 endDateTime = selected
                 endValue.text = formatDateTime(selected)
             }
