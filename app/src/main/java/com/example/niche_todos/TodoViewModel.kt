@@ -149,4 +149,32 @@ class TodoViewModel(
         val currentList = _todos.value ?: return
         _todos.value = currentList.filter { todo -> todo.id != id }
     }
+
+    fun moveTodo(fromIndex: Int, toIndex: Int) {
+        val currentList = _todos.value ?: return
+        if (fromIndex == toIndex ||
+            fromIndex !in currentList.indices ||
+            toIndex !in currentList.indices
+        ) {
+            return
+        }
+
+        val mutableList = currentList.toMutableList()
+        val todo = mutableList.removeAt(fromIndex)
+        mutableList.add(toIndex, todo)
+        _todos.value = mutableList.toList()
+    }
+
+    fun reorderTodos(newOrder: List<Todo>) {
+        val currentList = _todos.value ?: return
+        if (currentList.size != newOrder.size) {
+            return
+        }
+        val currentIds = currentList.map { it.id }.toSet()
+        val newIds = newOrder.map { it.id }.toSet()
+        if (currentIds != newIds) {
+            return
+        }
+        _todos.value = newOrder.toList()
+    }
 }
