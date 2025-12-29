@@ -2,12 +2,11 @@
 // ABOUTME: Provides UI wiring so activities can stay focused on behavior.
 package com.example.niche_todos
 
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
+import androidx.core.widget.doOnTextChanged
 
 fun AlertDialog.configureSaveButtonState(titleInput: EditText) {
     val saveButton = getButton(AlertDialog.BUTTON_POSITIVE)
@@ -22,17 +21,13 @@ internal fun configureSaveButtonStateInternal(
         saveButton.isEnabled = TodoTitleValidator.isValid(titleInput.text)
     }
     updateState()
-    val watcher = object : TextWatcher {
-        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-            updateState()
-        }
-        override fun afterTextChanged(s: Editable?) {}
+    val watcher = titleInput.doOnTextChanged { _, _, _, _ ->
+        updateState()
     }
-    titleInput.addTextChangedListener(watcher)
     val attachStateListener = object : View.OnAttachStateChangeListener {
         override fun onViewAttachedToWindow(v: View) {}
         override fun onViewDetachedFromWindow(v: View) {
+            // Remove callbacks once the view detaches to avoid leaking dialog references.
             titleInput.removeTextChangedListener(watcher)
             titleInput.removeOnAttachStateChangeListener(this)
         }

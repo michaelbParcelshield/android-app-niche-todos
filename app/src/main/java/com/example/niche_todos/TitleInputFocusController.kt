@@ -4,6 +4,7 @@ package com.example.niche_todos
 
 import android.content.DialogInterface
 import android.content.Context
+import androidx.annotation.MainThread
 import androidx.appcompat.app.AlertDialog
 import com.google.android.material.textfield.TextInputEditText
 import android.view.inputmethod.InputMethodManager
@@ -14,6 +15,7 @@ class TitleInputFocusController(
     private val focusActions: TitleInputFocusActions,
     private val softInputVisibilityController: SoftInputVisibilityController
 ) {
+    @MainThread
     fun selectTitle(selectAllExistingText: Boolean) {
         dialogOnShowRegistrar.setOnShowListener(DialogInterface.OnShowListener {
             softInputVisibilityController.ensureVisible()
@@ -29,6 +31,7 @@ class TitleInputFocusController(
 }
 
 fun interface DialogOnShowRegistrar {
+    @MainThread
     fun setOnShowListener(listener: DialogInterface.OnShowListener)
 }
 
@@ -49,12 +52,16 @@ class AlertDialogOnShowRegistrar(
     private val listeners = mutableListOf<DialogInterface.OnShowListener>()
     private var registered = false
 
+    @MainThread
     override fun setOnShowListener(listener: DialogInterface.OnShowListener) {
         listeners.add(listener)
         if (!registered) {
             registered = true
             alertDialog.setOnShowListener(DialogInterface.OnShowListener { dialogInterface ->
-                listeners.forEach { it.onShow(dialogInterface) }
+                val currentListeners = listeners.toList()
+                listeners.clear()
+                registered = false
+                currentListeners.forEach { it.onShow(dialogInterface) }
             })
         }
     }

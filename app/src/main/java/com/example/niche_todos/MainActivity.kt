@@ -139,9 +139,9 @@ class MainActivity : AppCompatActivity() {
             .setTitle(R.string.add_todo)
             .setView(dialogView)
             .setPositiveButton(R.string.save) { _, _ ->
-                val text = titleInput.text.toString()
-                if (text.isNotBlank()) {
-                    viewModel.addTodo(text, startDateTime, endDateTime)
+                val normalizedTitle = TodoTitleValidator.normalizedTitleOrNull(titleInput.text)
+                if (normalizedTitle != null) {
+                    viewModel.addTodo(normalizedTitle, startDateTime, endDateTime)
                 }
             }
             .setNegativeButton(R.string.cancel, null)
@@ -188,9 +188,9 @@ class MainActivity : AppCompatActivity() {
             .setTitle(R.string.edit_todo)
             .setView(dialogView)
             .setPositiveButton(R.string.save) { _, _ ->
-                val text = titleInput.text.toString()
-                if (text.isNotBlank()) {
-                    viewModel.updateTodo(todo.id, text, startDateTime, endDateTime)
+                val normalizedTitle = TodoTitleValidator.normalizedTitleOrNull(titleInput.text)
+                if (normalizedTitle != null) {
+                    viewModel.updateTodo(todo.id, normalizedTitle, startDateTime, endDateTime)
                 }
             }
             .setNegativeButton(R.string.cancel, null)

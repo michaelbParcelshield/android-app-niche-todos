@@ -2,12 +2,9 @@
 // ABOUTME: Ensures UI helpers do not break existing dialog contracts.
 package com.example.niche_todos
 
-import android.content.Context
 import android.content.DialogInterface
 import android.view.ContextThemeWrapper
-import android.view.View
 import android.widget.Button
-import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertFalse
@@ -16,13 +13,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 import org.mockito.Mockito
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
+import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(manifest = Config.NONE, sdk = [33])
+@Config(manifest = Config.NONE)
 class AlertDialogExtensionsTest {
 
     @Test
@@ -86,31 +83,4 @@ class AlertDialogExtensionsTest {
         )
     }
 
-    private class TestEditText(context: Context) : EditText(context) {
-        var lastAttachListener: View.OnAttachStateChangeListener? = null
-            private set
-        var watcherRemoved = false
-            private set
-
-        override fun addOnAttachStateChangeListener(listener: View.OnAttachStateChangeListener) {
-            lastAttachListener = listener
-            super.addOnAttachStateChangeListener(listener)
-        }
-
-        override fun removeOnAttachStateChangeListener(listener: View.OnAttachStateChangeListener) {
-            if (listener == lastAttachListener) {
-                lastAttachListener = null
-            }
-            super.removeOnAttachStateChangeListener(listener)
-        }
-
-        override fun removeTextChangedListener(watcher: android.text.TextWatcher?) {
-            watcherRemoved = true
-            super.removeTextChangedListener(watcher)
-        }
-
-        fun simulateDetach() {
-            lastAttachListener?.onViewDetachedFromWindow(this)
-        }
-    }
 }
