@@ -6,7 +6,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import java.time.LocalDateTime
-import java.time.LocalTime
 import java.util.UUID
 
 class TodoViewModel() : ViewModel() {
@@ -22,9 +21,11 @@ class TodoViewModel() : ViewModel() {
     private fun currentDayBounds(): Pair<LocalDateTime, LocalDateTime> {
         val today = nowProvider().toLocalDate()
         val startOfDay = today.atStartOfDay()
-        val endOfDay = LocalDateTime.of(today, LocalTime.of(23, 59))
+        val endOfDay = TodoDateDefaults.endOfDay(today)
         return startOfDay to endOfDay
     }
+
+    fun defaultDateRange(): Pair<LocalDateTime, LocalDateTime> = currentDayBounds()
 
     private fun prepareAddDates(
         startDateTime: LocalDateTime?,
@@ -34,7 +35,7 @@ class TodoViewModel() : ViewModel() {
         val resolvedStart = startDateTime ?: defaultStart
         val resolvedEnd = when (endDateTime) {
             null -> if (startDateTime != null) {
-                LocalDateTime.of(startDateTime.toLocalDate(), LocalTime.of(23, 59))
+                LocalDateTime.of(startDateTime.toLocalDate(), TodoDateDefaults.END_OF_DAY_TIME)
             } else {
                 defaultEnd
             }

@@ -105,6 +105,26 @@ class TodoViewModelTest {
     }
 
     @Test
+    fun addTodo_startProvidedEndMissing_setsEndToEndOfDay() {
+        val viewModel = TodoViewModel()
+        val observer = Observer<List<Todo>> {}
+        val startDateTime = LocalDateTime.of(2025, 6, 2, 9, 15)
+
+        try {
+            viewModel.todos.observeForever(observer)
+
+            viewModel.addTodo("Task", startDateTime, null)
+
+            val todo = viewModel.todos.value?.first()
+            val expectedEnd = LocalDateTime.of(2025, 6, 2, 23, 59)
+            assertEquals(startDateTime, todo?.startDateTime)
+            assertEquals(expectedEnd, todo?.endDateTime)
+        } finally {
+            viewModel.todos.removeObserver(observer)
+        }
+    }
+
+    @Test
     fun addTodo_endBeforeStart_clampsEndToStart() {
         val viewModel = TodoViewModel()
         val observer = Observer<List<Todo>> {}

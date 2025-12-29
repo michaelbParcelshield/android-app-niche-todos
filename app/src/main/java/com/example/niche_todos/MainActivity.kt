@@ -115,6 +115,32 @@ class MainActivity : AppCompatActivity() {
         datePickerDialog.show()
     }
 
+    private fun setupStartButtonHandler(
+        button: Button,
+        startValue: TextView,
+        endValue: TextView,
+        currentStart: () -> LocalDateTime?,
+        currentEnd: () -> LocalDateTime?,
+        onStartUpdated: (LocalDateTime) -> Unit,
+        onEndUpdated: (LocalDateTime) -> Unit
+    ) {
+        button.setOnClickListener {
+            val previousStart = currentStart()
+            val previousEnd = currentEnd()
+            showDateTimePicker(previousStart) { selected ->
+                onStartUpdated(selected)
+                startValue.text = formatDateTime(selected)
+                val adjustedEnd = DateRangeAdjuster.shiftEndKeepingDuration(
+                    previousStart,
+                    previousEnd,
+                    selected
+                )
+                onEndUpdated(adjustedEnd)
+                endValue.text = formatDateTime(adjustedEnd)
+            }
+        }
+    }
+
     private fun updateEmptyState(isEmpty: Boolean) {
         if (isEmpty) {
             recyclerView.visibility = View.GONE
@@ -133,9 +159,7 @@ class MainActivity : AppCompatActivity() {
         val startValue: TextView = dialogView.findViewById(R.id.text_start_value)
         val endValue: TextView = dialogView.findViewById(R.id.text_end_value)
 
-        val today = LocalDate.now()
-        val defaultStart = today.atStartOfDay()
-        val defaultEnd = LocalDateTime.of(today, LocalTime.of(23, 59))
+        val (defaultStart, defaultEnd) = viewModel.defaultDateRange()
 
         var startDateTime: LocalDateTime? = defaultStart
         var endDateTime: LocalDateTime? = defaultEnd
@@ -143,20 +167,15 @@ class MainActivity : AppCompatActivity() {
         startValue.text = formatDateTime(startDateTime)
         endValue.text = formatDateTime(endDateTime)
 
-        startButton.setOnClickListener {
-            val previousStart = startDateTime
-            val previousEnd = endDateTime
-            showDateTimePicker(startDateTime) { selected ->
-                startDateTime = selected
-                startValue.text = formatDateTime(selected)
-                endDateTime = DateRangeAdjuster.shiftEndKeepingDuration(
-                    previousStart,
-                    previousEnd,
-                    selected
-                )
-                endValue.text = formatDateTime(endDateTime)
-            }
-        }
+        setupStartButtonHandler(
+            startButton,
+            startValue,
+            endValue,
+            { startDateTime },
+            { endDateTime },
+            { startDateTime = it },
+            { endDateTime = it }
+        )
 
         endButton.setOnClickListener {
             showDateTimePicker(endDateTime ?: startDateTime, minDateTime = startDateTime) { selected ->
@@ -193,20 +212,15 @@ class MainActivity : AppCompatActivity() {
         startValue.text = formatDateTime(startDateTime)
         endValue.text = formatDateTime(endDateTime)
 
-        startButton.setOnClickListener {
-            val previousStart = startDateTime
-            val previousEnd = endDateTime
-            showDateTimePicker(startDateTime) { selected ->
-                startDateTime = selected
-                startValue.text = formatDateTime(selected)
-                endDateTime = DateRangeAdjuster.shiftEndKeepingDuration(
-                    previousStart,
-                    previousEnd,
-                    selected
-                )
-                endValue.text = formatDateTime(endDateTime)
-            }
-        }
+        setupStartButtonHandler(
+            startButton,
+            startValue,
+            endValue,
+            { startDateTime },
+            { endDateTime },
+            { startDateTime = it },
+            { endDateTime = it }
+        )
 
         endButton.setOnClickListener {
             showDateTimePicker(endDateTime ?: startDateTime, minDateTime = startDateTime) { selected ->
