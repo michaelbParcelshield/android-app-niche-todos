@@ -4,6 +4,7 @@ package com.example.niche_todos
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.content.DialogInterface
 import android.os.Bundle
 import android.text.format.DateFormat
 import android.view.View
@@ -146,15 +147,10 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton(R.string.cancel, null)
             .create()
 
-        dialog.setOnShowListener {
-            dialog.configureSaveButtonState(titleInput)
-        }
-
-        TitleInputFocusController(
-            AlertDialogOnShowRegistrar(dialog),
-            TextInputFocusActions(titleInput),
-            AlertDialogSoftInputVisibilityController(dialog)
-        ).selectTitle(selectAllExistingText = false)
+        dialog.configureTitleInputBehavior(
+            titleInput = titleInput,
+            selectAllExistingText = false
+        )
 
         dialog.show()
     }
@@ -200,17 +196,27 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton(R.string.cancel, null)
             .create()
 
-        dialog.setOnShowListener {
-            dialog.configureSaveButtonState(titleInput)
-        }
-
-        TitleInputFocusController(
-            AlertDialogOnShowRegistrar(dialog),
-            TextInputFocusActions(titleInput),
-            AlertDialogSoftInputVisibilityController(dialog)
-        ).selectTitle(selectAllExistingText = true)
+        dialog.configureTitleInputBehavior(
+            titleInput = titleInput,
+            selectAllExistingText = true
+        )
 
         dialog.show()
+    }
+
+    private fun AlertDialog.configureTitleInputBehavior(
+        titleInput: TextInputEditText,
+        selectAllExistingText: Boolean
+    ) {
+        val onShowRegistrar = AlertDialogOnShowRegistrar(this)
+        onShowRegistrar.setOnShowListener(DialogInterface.OnShowListener {
+            configureSaveButtonState(titleInput)
+        })
+        TitleInputFocusController(
+            onShowRegistrar,
+            TextInputFocusActions(titleInput),
+            AlertDialogSoftInputVisibilityController(this)
+        ).selectTitle(selectAllExistingText)
     }
 
     private fun attachDragToReorder() {

@@ -46,8 +46,17 @@ fun interface SoftInputVisibilityController {
 class AlertDialogOnShowRegistrar(
     private val alertDialog: AlertDialog
 ) : DialogOnShowRegistrar {
+    private val listeners = mutableListOf<DialogInterface.OnShowListener>()
+    private var registered = false
+
     override fun setOnShowListener(listener: DialogInterface.OnShowListener) {
-        alertDialog.setOnShowListener(listener)
+        listeners.add(listener)
+        if (!registered) {
+            registered = true
+            alertDialog.setOnShowListener(DialogInterface.OnShowListener { dialogInterface ->
+                listeners.forEach { it.onShow(dialogInterface) }
+            })
+        }
     }
 }
 

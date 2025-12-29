@@ -12,6 +12,9 @@ class TodoTitleValidatorTest {
         assertFalse(TodoTitleValidator.isValid(null))
         assertFalse(TodoTitleValidator.isValid(""))
         assertFalse(TodoTitleValidator.isValid("   "))
+        assertFalse(TodoTitleValidator.isValid("\t"))
+        assertFalse(TodoTitleValidator.isValid("\n"))
+        assertFalse(TodoTitleValidator.isValid("\u00A0"))
     }
 
     @Test
