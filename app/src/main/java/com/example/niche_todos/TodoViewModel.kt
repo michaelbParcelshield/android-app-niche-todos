@@ -8,12 +8,9 @@ import androidx.lifecycle.ViewModel
 import java.time.LocalDateTime
 import java.util.UUID
 
-class TodoViewModel() : ViewModel() {
-    private var nowProvider: () -> LocalDateTime = { LocalDateTime.now() }
-
-    internal constructor(nowProvider: () -> LocalDateTime) : this() {
-        this.nowProvider = nowProvider
-    }
+class TodoViewModel(
+    private val nowProvider: () -> LocalDateTime = { LocalDateTime.now() }
+) : ViewModel() {
 
     private val _todos = MutableLiveData<List<Todo>>(emptyList())
     val todos: LiveData<List<Todo>> = _todos

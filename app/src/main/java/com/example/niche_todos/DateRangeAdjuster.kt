@@ -11,7 +11,14 @@ object DateRangeAdjuster {
         previousEnd: LocalDateTime?,
         newStart: LocalDateTime
     ): LocalDateTime {
-        val duration = if (previousStart != null && previousEnd != null) {
+        if (previousStart == null) {
+            return if (previousEnd != null && !previousEnd.isBefore(newStart)) {
+                previousEnd
+            } else {
+                newStart
+            }
+        }
+        val duration = if (previousEnd != null) {
             Duration.between(previousStart, previousEnd)
         } else {
             Duration.ZERO

@@ -39,4 +39,14 @@ class DateRangeAdjusterTest {
 
         assertEquals(newStart, adjustedEnd)
     }
+
+    @Test
+    fun shiftEndKeepsExistingEndWhenStartMissing() {
+        val previousEnd = LocalDateTime.of(2025, 7, 4, 18, 0)
+        val newStart = LocalDateTime.of(2025, 7, 4, 9, 0)
+
+        val adjustedEnd = DateRangeAdjuster.shiftEndKeepingDuration(null, previousEnd, newStart)
+
+        assertEquals(previousEnd, adjustedEnd)
+    }
 }
