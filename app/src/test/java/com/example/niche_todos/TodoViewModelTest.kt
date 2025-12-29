@@ -84,6 +84,80 @@ class TodoViewModelTest {
     }
 
     @Test
+    fun addTodo_missingDates_defaultsToCurrentDayRange() {
+        val fixedNow = LocalDateTime.of(2025, 5, 1, 11, 30)
+        val viewModel = TodoViewModel(nowProvider = { fixedNow })
+        val observer = Observer<List<Todo>> {}
+
+        try {
+            viewModel.todos.observeForever(observer)
+
+            viewModel.addTodo("Defaulted", null, null)
+
+            val todo = viewModel.todos.value?.first()
+            val expectedStart = LocalDateTime.of(2025, 5, 1, 0, 0)
+            val expectedEnd = LocalDateTime.of(2025, 5, 1, 23, 59, 59)
+            assertEquals(expectedStart, todo?.startDateTime)
+            assertEquals(expectedEnd, todo?.endDateTime)
+        } finally {
+            viewModel.todos.removeObserver(observer)
+        }
+    }
+
+    @Test
+    fun defaultDateRange_returnsCurrentDayBounds() {
+        val fixedNow = LocalDateTime.of(2026, 1, 5, 16, 45)
+        val viewModel = TodoViewModel(nowProvider = { fixedNow })
+
+        val (start, end) = viewModel.defaultDateRange()
+
+        val expectedStart = LocalDateTime.of(2026, 1, 5, 0, 0)
+        val expectedEnd = LocalDateTime.of(2026, 1, 5, 23, 59, 59)
+        assertEquals(expectedStart, start)
+        assertEquals(expectedEnd, end)
+    }
+
+    @Test
+    fun addTodo_startProvidedEndMissing_setsEndToEndOfDay() {
+        val viewModel = TodoViewModel()
+        val observer = Observer<List<Todo>> {}
+        val startDateTime = LocalDateTime.of(2025, 6, 2, 9, 15)
+
+        try {
+            viewModel.todos.observeForever(observer)
+
+            viewModel.addTodo("Task", startDateTime, null)
+
+            val todo = viewModel.todos.value?.first()
+            val expectedEnd = LocalDateTime.of(2025, 6, 2, 23, 59, 59)
+            assertEquals(startDateTime, todo?.startDateTime)
+            assertEquals(expectedEnd, todo?.endDateTime)
+        } finally {
+            viewModel.todos.removeObserver(observer)
+        }
+    }
+
+    @Test
+    fun addTodo_endBeforeStart_clampsEndToStart() {
+        val viewModel = TodoViewModel()
+        val observer = Observer<List<Todo>> {}
+        val startDateTime = LocalDateTime.of(2025, 5, 2, 12, 0)
+        val endDateTime = LocalDateTime.of(2025, 5, 2, 10, 0)
+
+        try {
+            viewModel.todos.observeForever(observer)
+
+            viewModel.addTodo("Invalid range", startDateTime, endDateTime)
+
+            val todo = viewModel.todos.value?.first()
+            assertEquals(startDateTime, todo?.startDateTime)
+            assertEquals(startDateTime, todo?.endDateTime)
+        } finally {
+            viewModel.todos.removeObserver(observer)
+        }
+    }
+
+    @Test
     fun toggleComplete_togglesCompletionStatus() {
         val viewModel = TodoViewModel()
         val observer = Observer<List<Todo>> {}
@@ -169,6 +243,31 @@ class TodoViewModelTest {
             assertEquals(endDateTime, updatedTodo?.endDateTime)
             assertEquals(todoId, updatedTodo?.id)
             assertEquals(false, updatedTodo?.isCompleted)
+        } finally {
+            viewModel.todos.removeObserver(observer)
+        }
+    }
+
+    @Test
+    fun updateTodo_endBeforeStart_clampsEndToStart() {
+        val viewModel = TodoViewModel()
+        val observer = Observer<List<Todo>> {}
+        val originalStart = LocalDateTime.of(2025, 5, 3, 9, 0)
+        val originalEnd = LocalDateTime.of(2025, 5, 3, 17, 0)
+        val updatedStart = LocalDateTime.of(2025, 5, 4, 8, 0)
+        val invalidEnd = LocalDateTime.of(2025, 5, 4, 7, 30)
+
+        try {
+            viewModel.todos.observeForever(observer)
+
+            viewModel.addTodo("Task", originalStart, originalEnd)
+            val todoId = viewModel.todos.value?.first()?.id ?: ""
+
+            viewModel.updateTodo(todoId, "Task", updatedStart, invalidEnd)
+
+            val todo = viewModel.todos.value?.first()
+            assertEquals(updatedStart, todo?.startDateTime)
+            assertEquals(updatedStart, todo?.endDateTime)
         } finally {
             viewModel.todos.removeObserver(observer)
         }

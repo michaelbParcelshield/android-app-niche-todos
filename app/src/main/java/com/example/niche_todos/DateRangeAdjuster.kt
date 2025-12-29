@@ -1,0 +1,32 @@
+// ABOUTME: Utility for keeping todo start/end date ranges valid
+// Provides helpers to preserve durations when adjusting times in the UI
+package com.example.niche_todos
+
+import java.time.Duration
+import java.time.LocalDateTime
+
+object DateRangeAdjuster {
+    fun shiftEndKeepingDuration(
+        previousStart: LocalDateTime?,
+        previousEnd: LocalDateTime?,
+        newStart: LocalDateTime
+    ): LocalDateTime {
+        if (previousStart == null) {
+            return when {
+                previousEnd == null -> newStart
+                previousEnd.isAfter(newStart) -> previousEnd
+                else -> newStart
+            }
+        }
+
+        if (previousEnd == null) {
+            return newStart
+        }
+
+        val duration = Duration.between(previousStart, previousEnd)
+        if (duration.isNegative) {
+            return newStart
+        }
+        return newStart.plus(duration)
+    }
+}
