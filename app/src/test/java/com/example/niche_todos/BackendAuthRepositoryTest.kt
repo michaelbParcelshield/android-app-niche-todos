@@ -28,7 +28,7 @@ class BackendAuthRepositoryTest {
         val repository = BackendAuthRepository(
             client = FakeBackendAuthClient(
                 BackendAuthResponse(
-                    statusCode = 200,
+                    statusCode = 201,
                     tokens = tokens,
                     problemDetails = null,
                     errorBody = null
@@ -43,7 +43,7 @@ class BackendAuthRepositoryTest {
 
         val result = repository.exchangeGoogleIdToken("token-123")
 
-        assertEquals(AuthResult.Success(tokens, 200), result)
+        assertEquals(AuthResult.Success(tokens, 201), result)
         assertSame(tokens, tokenStore.savedTokens)
     }
 
@@ -76,7 +76,7 @@ class BackendAuthRepositoryTest {
     }
 
     @Test
-    fun exchangeGoogleIdToken_usesErrorBodyWhenProblemDetailsMissing() = runTest {
+    fun exchangeGoogleIdToken_usesFallbackWhenProblemDetailsMissing() = runTest {
         val tokenStore = FakeAuthTokenStore()
         val repository = BackendAuthRepository(
             client = FakeBackendAuthClient(
@@ -96,7 +96,7 @@ class BackendAuthRepositoryTest {
 
         val result = repository.exchangeGoogleIdToken("token-123")
 
-        assertEquals(AuthResult.Failure(500, "Server exploded"), result)
+        assertEquals(AuthResult.Failure(500, "Authentication failed"), result)
         assertNull(tokenStore.savedTokens)
     }
 }

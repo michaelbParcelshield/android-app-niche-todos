@@ -8,6 +8,12 @@ class FakeHealthRepository(
     override suspend fun runHealthCheck(): HealthCheckResult = result
 }
 
+class FakeHealthClient(
+    private val statusCode: Int?
+) : HealthClient {
+    override suspend fun fetchStatusCode(url: java.net.URL): Int? = statusCode
+}
+
 class FakeAuthRepository(
     private val result: AuthResult = AuthResult.Success(
         AuthTokens(

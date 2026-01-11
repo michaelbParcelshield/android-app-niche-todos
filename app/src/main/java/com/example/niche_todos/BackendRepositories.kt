@@ -21,7 +21,7 @@ interface AuthRepository {
 }
 
 class BackendHealthRepository(
-    private val client: HealthCheckClient,
+    private val client: HealthClient,
     private val endpoints: BackendEndpoints
 ) : HealthRepository {
     override suspend fun runHealthCheck(): HealthCheckResult {
@@ -45,12 +45,12 @@ class BackendAuthRepository(
             ?: return AuthResult.Failure(null, "Network error")
 
         val tokens = response.tokens
-        if (response.statusCode == 200 && tokens != null) {
+        if (response.statusCode in 200..299 && tokens != null) {
             tokenStore.save(tokens)
             return AuthResult.Success(tokens, response.statusCode)
         }
 
-        val message = response.problemDetails?.detail ?: response.errorBody
+        val message = response.problemDetails?.detail ?: "Authentication failed"
         return AuthResult.Failure(response.statusCode, message)
     }
 }
