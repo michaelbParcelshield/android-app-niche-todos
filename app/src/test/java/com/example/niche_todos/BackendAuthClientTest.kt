@@ -2,14 +2,26 @@
 // ABOUTME: Confirms Google ID tokens are POSTed to the backend endpoint.
 package com.example.niche_todos
 
+import android.util.Log
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLConnection
+import java.net.URLStreamHandler
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.net.URL
-import java.util.concurrent.atomic.AtomicReference
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLog
 
+@RunWith(RobolectricTestRunner::class)
+@Config(manifest = Config.NONE, sdk = [33])
 class BackendAuthClientTest {
 
     @Test
@@ -55,5 +67,37 @@ class BackendAuthClientTest {
         assertTrue(request.contains("POST /auth/google"))
         assertTrue(request.contains("Content-Type: application/json"))
         assertTrue(request.contains("\"idToken\":\"token-123\""))
+    }
+
+    @Test
+    fun exchangeGoogleIdToken_logsIOExceptionAndReturnsNull() = runTest {
+        ShadowLog.setupLogging()
+        val client = BackendAuthClient()
+        val handler = ThrowingConnectionHandler()
+
+        val response = client.exchangeGoogleIdToken(
+            URL(null, "test://auth", handler),
+            "token-123"
+        )
+
+        assertNull(response)
+        val logs = ShadowLog.getLogsForTag("BackendAuthClient")
+        assertTrue(logs.any { it.type == Log.WARN })
+    }
+
+    private class ThrowingConnectionHandler : URLStreamHandler() {
+        override fun openConnection(url: URL): URLConnection = ThrowingHttpURLConnection(url)
+    }
+
+    private class ThrowingHttpURLConnection(url: URL) : HttpURLConnection(url) {
+        override fun connect() = Unit
+
+        override fun disconnect() = Unit
+
+        override fun usingProxy(): Boolean = false
+
+        override fun getOutputStream(): java.io.OutputStream {
+            throw IOException("Simulated failure")
+        }
     }
 }

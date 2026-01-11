@@ -13,10 +13,8 @@ class GoogleSignInResultHandler {
         if (resultCode != android.app.Activity.RESULT_OK) {
             return GoogleSignInOutcome.Cancelled
         }
-        val token = idToken?.trim().orEmpty()
-        if (token.isEmpty()) {
-            return GoogleSignInOutcome.MissingIdToken
-        }
+        val token = idToken?.trim()?.takeIf { it.isNotBlank() }
+            ?: return GoogleSignInOutcome.MissingIdToken
         return GoogleSignInOutcome.Success(token)
     }
 }

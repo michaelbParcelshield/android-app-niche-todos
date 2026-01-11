@@ -74,7 +74,7 @@ class BackendAuthRepository(
             return AuthResult.Success(tokens, response.statusCode)
         }
 
-        val message = response.problemDetails?.detail ?: "Authentication failed"
+        val message = response.problemDetails?.detail?.takeIf { it.isNotBlank() }
         return AuthResult.Failure(response.statusCode, message)
     }
 }

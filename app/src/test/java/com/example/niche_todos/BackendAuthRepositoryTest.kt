@@ -99,7 +99,7 @@ class BackendAuthRepositoryTest {
 
         val result = repository.exchangeGoogleIdToken("token-123")
 
-        assertEquals(AuthResult.Failure(500, "Authentication failed"), result)
+        assertEquals(AuthResult.Failure(500, null), result)
         assertNull(tokenStore.savedTokens)
     }
 }

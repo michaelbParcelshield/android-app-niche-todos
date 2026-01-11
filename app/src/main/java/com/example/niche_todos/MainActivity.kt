@@ -495,6 +495,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderAuthStatus(status: AuthStatus) {
+        googleSignInButton.isEnabled = status !is AuthStatus.Authenticating
         authStatusText.text = when (status) {
             AuthStatus.SignedOut -> getString(R.string.auth_status_initial)
             AuthStatus.SigningIn -> getString(R.string.auth_status_signing_in)
