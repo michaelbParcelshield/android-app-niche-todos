@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ABOUTME: Debug-only backend URLs pointing at a local network server. -->
+<!-- ABOUTME: Overrides release defaults to target 192.168.1.7 for local testing. -->
+<resources>
+    <string name="backend_health_url">http://192.168.1.7:5191/healthz</string>
+    <string name="backend_auth_url">http://192.168.1.7:5191/auth/google</string>
+    <string name="backend_todos_url">http://192.168.1.7:5191/todos</string>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ABOUTME: Debug-only cleartext rules for the local backend server. -->
+<!-- ABOUTME: Allows HTTP traffic solely to 192.168.1.7 on the LAN. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.1.7</domain>
+    </domain-config>
+</network-security-config>
