@@ -11,19 +11,26 @@ import android.view.View
 import android.widget.Button
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import android.widget.TextView
 import android.widget.Toast
 import com.example.niche_todos.databinding.ActivityMainBinding
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.google.android.material.textfield.TextInputEditText
+import java.net.URL
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.ZoneId
 import java.util.Locale
+import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
 
@@ -32,6 +39,36 @@ class MainActivity : AppCompatActivity() {
     private lateinit var adapter: TodoAdapter
     private lateinit var recyclerView: RecyclerView
     private lateinit var emptyStateText: TextView
+    private lateinit var healthCheckButton: Button
+    private lateinit var healthStatusText: TextView
+    private lateinit var googleSignInButton: Button
+    private lateinit var authStatusText: TextView
+    private lateinit var googleSignInClient: GoogleSignInClient
+    private val healthCheckClient = HealthCheckClient()
+    private val healthCheckUrl = URL(HEALTH_CHECK_URL)
+    private val backendAuthClient = BackendAuthClient()
+    private val backendAuthUrl = URL(BACKEND_AUTH_URL)
+    private val googleSignInLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != RESULT_OK) {
+            authStatusText.text = getString(R.string.auth_status_failure)
+            return@registerForActivityResult
+        }
+
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account.idToken
+            if (idToken.isNullOrBlank()) {
+                authStatusText.text = getString(R.string.auth_status_missing_id_token)
+            } else {
+                authenticateWithBackend(idToken)
+            }
+        } catch (error: ApiException) {
+            authStatusText.text = getString(R.string.auth_status_failure)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,6 +82,11 @@ class MainActivity : AppCompatActivity() {
 
         recyclerView = findViewById(R.id.recycler_todos)
         emptyStateText = findViewById(R.id.text_empty_state)
+        healthCheckButton = findViewById(R.id.button_health_check)
+        healthStatusText = findViewById(R.id.text_health_status)
+        googleSignInButton = findViewById(R.id.button_google_sign_in)
+        authStatusText = findViewById(R.id.text_auth_status)
+        configureGoogleSignIn()
 
         adapter = TodoAdapter(
             onToggleComplete = { id -> viewModel.toggleComplete(id) },
@@ -62,6 +104,14 @@ class MainActivity : AppCompatActivity() {
 
         binding.fab.setOnClickListener {
             showAddDialog()
+        }
+
+        healthCheckButton.setOnClickListener {
+            runHealthCheck()
+        }
+
+        googleSignInButton.setOnClickListener {
+            startGoogleSignIn()
         }
     }
 
@@ -188,6 +238,47 @@ class MainActivity : AppCompatActivity() {
         } else {
             recyclerView.visibility = View.VISIBLE
             emptyStateText.visibility = View.GONE
+        }
+    }
+
+    private fun runHealthCheck() {
+        healthStatusText.text = getString(R.string.health_check_in_progress)
+        thread {
+            val statusCode = healthCheckClient.fetchStatusCode(healthCheckUrl)
+            runOnUiThread {
+                healthStatusText.text = if (statusCode == 200) {
+                    getString(R.string.health_check_success, statusCode)
+                } else {
+                    getString(R.string.health_check_failure)
+                }
+            }
+        }
+    }
+
+    private fun configureGoogleSignIn() {
+        val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
+            .requestIdToken(getString(R.string.google_web_client_id))
+            .build()
+        googleSignInClient = GoogleSignIn.getClient(this, options)
+    }
+
+    private fun startGoogleSignIn() {
+        authStatusText.text = getString(R.string.auth_status_signing_in)
+        googleSignInLauncher.launch(googleSignInClient.signInIntent)
+    }
+
+    private fun authenticateWithBackend(idToken: String) {
+        authStatusText.text = getString(R.string.auth_status_authenticating)
+        thread {
+            val statusCode = backendAuthClient.exchangeGoogleIdToken(backendAuthUrl, idToken)
+            runOnUiThread {
+                authStatusText.text = if (statusCode == 200) {
+                    getString(R.string.auth_status_success, statusCode)
+                } else {
+                    getString(R.string.auth_status_failure)
+                }
+            }
         }
     }
 
@@ -346,5 +437,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
         ItemTouchHelper(touchHelperCallback).attachToRecyclerView(recyclerView)
+    }
+
+    companion object {
+        private const val HEALTH_CHECK_URL = "https://d3lxkjxps3hu7c.cloudfront.net/healthz"
+        private const val BACKEND_AUTH_URL = "https://d3lxkjxps3hu7c.cloudfront.net/auth/google"
     }
 }
