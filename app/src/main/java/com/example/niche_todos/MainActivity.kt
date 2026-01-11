@@ -62,12 +62,16 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
 
         backendEndpointSelector = BackendEndpointSelector(applicationContext)
-        val repositories = buildRepositories()
+        val endpointMode = resolveEndpointMode()
+        val repositories = buildRepositories(endpointMode)
         viewModel = ViewModelProvider(
             this,
             TodoViewModelFactory(repositories.todoRepository)
-        )[TodoViewModel::class.java]
-        backendStatusViewModel = buildBackendStatusViewModel(repositories)
+        ).get(
+            BackendEndpointViewModelKeys.todoKey(endpointMode),
+            TodoViewModel::class.java
+        )
+        backendStatusViewModel = buildBackendStatusViewModel(repositories, endpointMode)
 
         recyclerView = findViewById(R.id.recycler_todos)
         emptyStateText = findViewById(R.id.text_empty_state)
@@ -409,19 +413,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun buildBackendStatusViewModel(
-        repositories: BackendRepositoryBundle
+        repositories: BackendRepositoryBundle,
+        endpointMode: BackendEndpointMode
     ): BackendStatusViewModel {
         val factory = BackendStatusViewModelFactory(repositories)
-        return ViewModelProvider(this, factory)[BackendStatusViewModel::class.java]
+        return ViewModelProvider(this, factory).get(
+            BackendEndpointViewModelKeys.statusKey(endpointMode),
+            BackendStatusViewModel::class.java
+        )
     }
 
-    private fun buildRepositories(): BackendRepositoryBundle {
-        val useCloud = if (isDebugBuild()) {
-            backendEndpointSelector.useCloud()
-        } else {
-            true
-        }
-        val endpoints = if (useCloud) {
+    private fun buildRepositories(endpointMode: BackendEndpointMode): BackendRepositoryBundle {
+        val endpoints = if (endpointMode == BackendEndpointMode.Cloud) {
             buildEndpoints(
                 healthUrlResId = R.string.backend_health_url_cloud,
                 authUrlResId = R.string.backend_auth_url_cloud,
@@ -435,6 +438,14 @@ class MainActivity : AppCompatActivity() {
             )
         }
         return MainActivityDependencies.repositoryFactory(applicationContext, endpoints)
+    }
+
+    private fun resolveEndpointMode(): BackendEndpointMode {
+        return if (isDebugBuild() && !backendEndpointSelector.useCloud()) {
+            BackendEndpointMode.Local
+        } else {
+            BackendEndpointMode.Cloud
+        }
     }
 
     private fun buildEndpoints(
