@@ -3,6 +3,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -49,9 +50,15 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.security.crypto)
     implementation(libs.google.play.services.auth)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)
     testImplementation(libs.androidx.arch.core.testing)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.robolectric)
     testImplementation(libs.mockito.core)

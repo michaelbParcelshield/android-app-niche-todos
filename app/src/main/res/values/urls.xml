@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ABOUTME: Default backend URLs used when build-type overlays are absent. -->
+<!-- ABOUTME: Provides fallback values for unit tests and tooling. -->
+<resources>
+    <string name="backend_health_url">https://d3lxkjxps3hu7c.cloudfront.net/healthz</string>
+    <string name="backend_auth_url">https://d3lxkjxps3hu7c.cloudfront.net/auth/google</string>
+</resources>
