@@ -15,6 +15,19 @@
     <string name="cancel">Cancel</string>
     <string name="empty_state">No todos yet. Tap + to add one</string>
     <string name="end_before_start_error">End time must not be before the start time</string>
+    <string name="health_check_button">Check backend health</string>
+    <string name="health_check_initial">Health check not run yet</string>
+    <string name="health_check_in_progress">Health check in progress...</string>
+    <string name="health_check_success">Health check OK (%1$d)</string>
+    <string name="health_check_failure">Health check failed</string>
+    <string name="google_web_client_id">290540092298-cjs20e55mo23hur8i8m8ij9j92oq1s2e.apps.googleusercontent.com</string>
+    <string name="auth_button_google">Sign in with Google</string>
+    <string name="auth_status_initial">Not signed in</string>
+    <string name="auth_status_signing_in">Signing in with Google...</string>
+    <string name="auth_status_authenticating">Authenticating with backend...</string>
+    <string name="auth_status_success">Backend auth OK (%1$d)</string>
+    <string name="auth_status_failure">Sign-in failed</string>
+    <string name="auth_status_missing_id_token">No Google ID token received</string>
 
     <!-- Accessibility content descriptions -->
     <string name="content_desc_add_todo">Add new todo</string>
