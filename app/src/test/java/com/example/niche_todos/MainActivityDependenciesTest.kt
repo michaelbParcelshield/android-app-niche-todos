@@ -18,7 +18,8 @@ class MainActivityDependenciesTest {
         MainActivityDependencies.repositoryFactory = { _, _ ->
             BackendRepositoryBundle(
                 healthRepository = FakeHealthRepository(HealthCheckResult.Success(200)),
-                authRepository = FakeAuthRepository()
+                authRepository = FakeAuthRepository(),
+                todoRepository = FakeTodoRepository()
             )
         }
         MainActivityDependencies.googleSignInFacadeFactory = { _, _ ->
@@ -33,13 +34,15 @@ class MainActivityDependenciesTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val endpoints = BackendEndpoints(
             healthUrl = URL("https://example.com/healthz"),
-            authUrl = URL("https://example.com/auth/google")
+            authUrl = URL("https://example.com/auth/google"),
+            todosUrl = URL("https://example.com/todos")
         )
         val repositories = MainActivityDependencies.repositoryFactory(context, endpoints)
         val googleFacade = MainActivityDependencies.googleSignInFacadeFactory(context, "client-id")
 
         assertTrue(repositories.healthRepository is BackendHealthRepository)
         assertTrue(repositories.authRepository is BackendAuthRepository)
+        assertTrue(repositories.todoRepository is BackendTodoRepository)
         assertTrue(googleFacade is GoogleSignInFacadeImpl)
     }
 }

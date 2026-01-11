@@ -2,6 +2,7 @@
 // ABOUTME: Posts JSON requests and parses token responses or problem details.
 package com.example.niche_todos
 
+import android.util.Log
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -61,6 +62,7 @@ class BackendAuthClient(
                     errorBody = if (statusCode !in 200..299) body else null
                 )
             } catch (error: IOException) {
+                Log.w(TAG, "Failed to exchange Google ID token", error)
                 null
             } finally {
                 connection.disconnect()
@@ -78,6 +80,7 @@ class BackendAuthClient(
     }
 
     private companion object {
+        private const val TAG = "BackendAuthClient"
         private const val DEFAULT_CONNECT_TIMEOUT_MS = 5000
         private const val DEFAULT_READ_TIMEOUT_MS = 5000
     }

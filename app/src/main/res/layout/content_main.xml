@@ -57,6 +57,19 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/button_google_sign_in" />
 
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switch_backend_endpoint"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="16dp"
+        android:text="@string/backend_endpoint_toggle_label"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/text_auth_status" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_todos"
         android:layout_width="0dp"
@@ -65,7 +78,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/text_auth_status" />
+        app:layout_constraintTop_toBottomOf="@id/switch_backend_endpoint" />
 
     <TextView
         android:id="@+id/text_empty_state"
@@ -78,6 +91,6 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/text_auth_status" />
+        app:layout_constraintTop_toBottomOf="@id/switch_backend_endpoint" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

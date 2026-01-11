@@ -1,3 +1,5 @@
+<!-- ABOUTME: Text resources for labels, statuses, and UI copy. -->
+<!-- ABOUTME: Centralizes user-facing strings and accessibility descriptions. -->
 <resources>
     <string name="app_name">Niche-Todos</string>
     <string name="action_settings">Settings</string>
@@ -30,6 +32,7 @@
     <string name="auth_status_failure">Sign-in failed</string>
     <string name="auth_status_failure_with_details">Sign-in failed: %1$s</string>
     <string name="auth_status_missing_id_token">No Google ID token received</string>
+    <string name="backend_endpoint_toggle_label">Use cloud backend</string>
 
     <!-- Accessibility content descriptions -->
     <string name="content_desc_add_todo">Add new todo</string>

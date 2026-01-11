@@ -54,3 +54,93 @@ class FakeAuthTokenStore : AuthTokenStore {
         savedTokens = null
     }
 }
+
+class FakeTodoRepository(
+    initialTodos: List<Todo> = emptyList(),
+    private val idProvider: () -> String = { java.util.UUID.randomUUID().toString() },
+    private val shouldFail: Boolean = false
+) : TodoRepository {
+    private val todos = initialTodos.toMutableList()
+
+    override suspend fun fetchTodos(): TodoSyncResult = respondWithTodos()
+
+    override suspend fun createTodo(
+        title: String,
+        startDateTime: java.time.LocalDateTime?,
+        endDateTime: java.time.LocalDateTime?,
+        isCompleted: Boolean
+    ): TodoSyncResult {
+        if (shouldFail) {
+            return TodoSyncResult.Failure(500, "Failure")
+        }
+
+        todos.add(
+            Todo(
+                id = idProvider(),
+                properties = listOf(
+                    TodoProperty.Title(title),
+                    TodoProperty.StartDateTime(startDateTime),
+                    TodoProperty.EndDateTime(endDateTime)
+                ),
+                isCompleted = isCompleted
+            )
+        )
+        return respondWithTodos()
+    }
+
+    override suspend fun updateTodo(
+        id: String,
+        title: String,
+        startDateTime: java.time.LocalDateTime?,
+        endDateTime: java.time.LocalDateTime?,
+        isCompleted: Boolean
+    ): TodoSyncResult {
+        if (shouldFail) {
+            return TodoSyncResult.Failure(500, "Failure")
+        }
+
+        val index = todos.indexOfFirst { it.id == id }
+        if (index == -1) {
+            return TodoSyncResult.Failure(404, "Not found")
+        }
+
+        todos[index] = todos[index].copy(
+            properties = listOf(
+                TodoProperty.Title(title),
+                TodoProperty.StartDateTime(startDateTime),
+                TodoProperty.EndDateTime(endDateTime)
+            ),
+            isCompleted = isCompleted
+        )
+        return respondWithTodos()
+    }
+
+    override suspend fun deleteTodo(id: String): TodoSyncResult {
+        if (shouldFail) {
+            return TodoSyncResult.Failure(500, "Failure")
+        }
+
+        todos.removeAll { it.id == id }
+        return respondWithTodos()
+    }
+
+    override suspend fun reorderTodos(orderedIds: List<String>): TodoSyncResult {
+        if (shouldFail) {
+            return TodoSyncResult.Failure(500, "Failure")
+        }
+
+        val currentIds = todos.map { it.id }.toSet()
+        val orderedSet = orderedIds.toSet()
+        if (currentIds != orderedSet) {
+            return TodoSyncResult.Failure(400, "Bad order")
+        }
+
+        val reordered = orderedIds.mapNotNull { id -> todos.firstOrNull { it.id == id } }
+        todos.clear()
+        todos.addAll(reordered)
+        return respondWithTodos()
+    }
+
+    private fun respondWithTodos(): TodoSyncResult =
+        TodoSyncResult.Success(todos.toList(), 200)
+}

@@ -12,12 +12,36 @@ sealed class AuthResult {
     data class Failure(val statusCode: Int?, val message: String?) : AuthResult()
 }
 
+sealed class TodoSyncResult {
+    data class Success(val todos: List<Todo>, val statusCode: Int) : TodoSyncResult()
+    data class Failure(val statusCode: Int?, val message: String?) : TodoSyncResult()
+}
+
 interface HealthRepository {
     suspend fun runHealthCheck(): HealthCheckResult
 }
 
 interface AuthRepository {
     suspend fun exchangeGoogleIdToken(idToken: String): AuthResult
+}
+
+interface TodoRepository {
+    suspend fun fetchTodos(): TodoSyncResult
+    suspend fun createTodo(
+        title: String,
+        startDateTime: java.time.LocalDateTime?,
+        endDateTime: java.time.LocalDateTime?,
+        isCompleted: Boolean
+    ): TodoSyncResult
+    suspend fun updateTodo(
+        id: String,
+        title: String,
+        startDateTime: java.time.LocalDateTime?,
+        endDateTime: java.time.LocalDateTime?,
+        isCompleted: Boolean
+    ): TodoSyncResult
+    suspend fun deleteTodo(id: String): TodoSyncResult
+    suspend fun reorderTodos(orderedIds: List<String>): TodoSyncResult
 }
 
 class BackendHealthRepository(
@@ -50,7 +74,7 @@ class BackendAuthRepository(
             return AuthResult.Success(tokens, response.statusCode)
         }
 
-        val message = response.problemDetails?.detail ?: "Authentication failed"
+        val message = response.problemDetails?.detail?.takeIf { it.isNotBlank() }
         return AuthResult.Failure(response.statusCode, message)
     }
 }

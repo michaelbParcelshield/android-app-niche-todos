@@ -5,10 +5,12 @@ package com.example.niche_todos
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import java.time.LocalDateTime
-import java.util.UUID
+import kotlinx.coroutines.launch
 
 class TodoViewModel(
+    private val todoRepository: TodoRepository,
     private val nowProvider: () -> LocalDateTime = { LocalDateTime.now() }
 ) : ViewModel() {
 
@@ -23,6 +25,15 @@ class TodoViewModel(
     }
 
     fun defaultDateRange(): Pair<LocalDateTime, LocalDateTime> = currentDayBounds()
+
+    fun refreshTodos() {
+        viewModelScope.launch {
+            when (val result = todoRepository.fetchTodos()) {
+                is TodoSyncResult.Success -> _todos.value = result.todos
+                is TodoSyncResult.Failure -> Unit
+            }
+        }
+    }
 
     private fun prepareAddDates(
         startDateTime: LocalDateTime?,
@@ -56,36 +67,6 @@ class TodoViewModel(
         return startDateTime to endDateTime
     }
 
-    private fun buildProperties(
-        title: String,
-        startDateTime: LocalDateTime?,
-        endDateTime: LocalDateTime?
-    ): List<TodoProperty> {
-        return listOf(
-            TodoProperty.Title(title),
-            TodoProperty.StartDateTime(startDateTime),
-            TodoProperty.EndDateTime(endDateTime)
-        )
-    }
-
-    private fun updateProperties(
-        properties: List<TodoProperty>,
-        title: String,
-        startDateTime: LocalDateTime?,
-        endDateTime: LocalDateTime?
-    ): List<TodoProperty> {
-        val remaining = properties.filterNot { property ->
-            property is TodoProperty.Title ||
-                property is TodoProperty.StartDateTime ||
-                property is TodoProperty.EndDateTime
-        }
-        return listOf(
-            TodoProperty.Title(title),
-            TodoProperty.StartDateTime(startDateTime),
-            TodoProperty.EndDateTime(endDateTime)
-        ) + remaining
-    }
-
     fun addTodo(text: String, startDateTime: LocalDateTime?, endDateTime: LocalDateTime?) {
         val trimmedText = text.trim()
         if (trimmedText.isEmpty()) {
@@ -94,23 +75,33 @@ class TodoViewModel(
 
         val (resolvedStart, resolvedEnd) = prepareAddDates(startDateTime, endDateTime)
 
-        val newTodo = Todo(
-            id = UUID.randomUUID().toString(),
-            properties = buildProperties(trimmedText, resolvedStart, resolvedEnd),
-            isCompleted = false
-        )
-
-        val currentList = _todos.value ?: emptyList()
-        _todos.value = currentList + newTodo
+        viewModelScope.launch {
+            when (val result = todoRepository.createTodo(
+                trimmedText,
+                resolvedStart,
+                resolvedEnd,
+                false
+            )) {
+                is TodoSyncResult.Success -> _todos.value = result.todos
+                is TodoSyncResult.Failure -> Unit
+            }
+        }
     }
 
     fun toggleComplete(id: String) {
         val currentList = _todos.value ?: return
-        _todos.value = currentList.map { todo ->
-            if (todo.id == id) {
-                todo.copy(isCompleted = !todo.isCompleted)
-            } else {
-                todo
+        val todo = currentList.firstOrNull { it.id == id } ?: return
+        val updatedCompleted = !todo.isCompleted
+        viewModelScope.launch {
+            when (val result = todoRepository.updateTodo(
+                id = todo.id,
+                title = todo.title,
+                startDateTime = todo.startDateTime,
+                endDateTime = todo.endDateTime,
+                isCompleted = updatedCompleted
+            )) {
+                is TodoSyncResult.Success -> _todos.value = result.todos
+                is TodoSyncResult.Failure -> Unit
             }
         }
     }
@@ -129,25 +120,29 @@ class TodoViewModel(
         val (resolvedStart, resolvedEnd) = enforceEndAfterStart(startDateTime, endDateTime)
 
         val currentList = _todos.value ?: return
-        _todos.value = currentList.map { todo ->
-            if (todo.id == id) {
-                todo.copy(
-                    properties = updateProperties(
-                        todo.properties,
-                        trimmedText,
-                        resolvedStart,
-                        resolvedEnd
-                    )
-                )
-            } else {
-                todo
+        val todo = currentList.firstOrNull { it.id == id } ?: return
+        viewModelScope.launch {
+            when (val result = todoRepository.updateTodo(
+                id = todo.id,
+                title = trimmedText,
+                startDateTime = resolvedStart,
+                endDateTime = resolvedEnd,
+                isCompleted = todo.isCompleted
+            )) {
+                is TodoSyncResult.Success -> _todos.value = result.todos
+                is TodoSyncResult.Failure -> Unit
             }
         }
     }
 
     fun deleteTodo(id: String) {
-        val currentList = _todos.value ?: return
-        _todos.value = currentList.filter { todo -> todo.id != id }
+        _todos.value ?: return
+        viewModelScope.launch {
+            when (val result = todoRepository.deleteTodo(id)) {
+                is TodoSyncResult.Success -> _todos.value = result.todos
+                is TodoSyncResult.Failure -> Unit
+            }
+        }
     }
 
     fun moveTodo(fromIndex: Int, toIndex: Int) {
@@ -175,6 +170,11 @@ class TodoViewModel(
         if (currentIds != newIds) {
             return
         }
-        _todos.value = newOrder.toList()
+        viewModelScope.launch {
+            when (val result = todoRepository.reorderTodos(newOrder.map { it.id })) {
+                is TodoSyncResult.Success -> _todos.value = result.todos
+                is TodoSyncResult.Failure -> Unit
+            }
+        }
     }
 }

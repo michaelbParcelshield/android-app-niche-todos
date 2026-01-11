@@ -4,4 +4,8 @@
 <resources>
     <string name="backend_health_url">https://d3lxkjxps3hu7c.cloudfront.net/healthz</string>
     <string name="backend_auth_url">https://d3lxkjxps3hu7c.cloudfront.net/auth/google</string>
+    <string name="backend_todos_url">https://d3lxkjxps3hu7c.cloudfront.net/todos</string>
+    <string name="backend_health_url_cloud">https://d3lxkjxps3hu7c.cloudfront.net/healthz</string>
+    <string name="backend_auth_url_cloud">https://d3lxkjxps3hu7c.cloudfront.net/auth/google</string>
+    <string name="backend_todos_url_cloud">https://d3lxkjxps3hu7c.cloudfront.net/todos</string>
 </resources>

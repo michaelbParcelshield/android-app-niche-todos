@@ -6,6 +6,7 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.DialogInterface
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.text.format.DateFormat
 import android.view.View
@@ -28,6 +29,7 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.ZoneId
 import java.util.Locale
+import androidx.appcompat.widget.SwitchCompat
 
 class MainActivity : AppCompatActivity() {
 
@@ -41,6 +43,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var healthStatusText: TextView
     private lateinit var googleSignInButton: Button
     private lateinit var authStatusText: TextView
+    private lateinit var backendEndpointSwitch: SwitchCompat
+    private lateinit var backendEndpointSelector: BackendEndpointSelector
     private lateinit var googleSignInFacade: GoogleSignInFacade
     private val googleSignInResultHandler = GoogleSignInResultHandler()
     private val googleSignInLauncher = registerForActivityResult(
@@ -57,8 +61,17 @@ class MainActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
 
-        viewModel = ViewModelProvider(this)[TodoViewModel::class.java]
-        backendStatusViewModel = buildBackendStatusViewModel()
+        backendEndpointSelector = BackendEndpointSelector(applicationContext)
+        val endpointMode = resolveEndpointMode()
+        val repositories = buildRepositories(endpointMode)
+        viewModel = ViewModelProvider(
+            this,
+            TodoViewModelFactory(repositories.todoRepository)
+        ).get(
+            BackendEndpointViewModelKeys.todoKey(endpointMode),
+            TodoViewModel::class.java
+        )
+        backendStatusViewModel = buildBackendStatusViewModel(repositories, endpointMode)
 
         recyclerView = findViewById(R.id.recycler_todos)
         emptyStateText = findViewById(R.id.text_empty_state)
@@ -66,6 +79,7 @@ class MainActivity : AppCompatActivity() {
         healthStatusText = findViewById(R.id.text_health_status)
         googleSignInButton = findViewById(R.id.button_google_sign_in)
         authStatusText = findViewById(R.id.text_auth_status)
+        backendEndpointSwitch = findViewById(R.id.switch_backend_endpoint)
         googleSignInFacade = MainActivityDependencies.googleSignInFacadeFactory(
             this,
             getString(R.string.google_web_client_id)
@@ -89,6 +103,9 @@ class MainActivity : AppCompatActivity() {
         }
         backendStatusViewModel.authStatus.observe(this) { status ->
             renderAuthStatus(status)
+            if (status is AuthStatus.Success) {
+                viewModel.refreshTodos()
+            }
         }
 
         binding.fab.setOnClickListener {
@@ -102,6 +119,9 @@ class MainActivity : AppCompatActivity() {
         googleSignInButton.setOnClickListener {
             startGoogleSignIn()
         }
+
+        configureBackendEndpointSwitch()
+        viewModel.refreshTodos()
     }
 
     private fun formatDateTime(dateTime: LocalDateTime?): String {
@@ -392,14 +412,70 @@ class MainActivity : AppCompatActivity() {
         ItemTouchHelper(touchHelperCallback).attachToRecyclerView(recyclerView)
     }
 
-    private fun buildBackendStatusViewModel(): BackendStatusViewModel {
-        val endpoints = BackendEndpoints(
-            healthUrl = URL(getString(R.string.backend_health_url)),
-            authUrl = URL(getString(R.string.backend_auth_url))
-        )
-        val repositories = MainActivityDependencies.repositoryFactory(applicationContext, endpoints)
+    private fun buildBackendStatusViewModel(
+        repositories: BackendRepositoryBundle,
+        endpointMode: BackendEndpointMode
+    ): BackendStatusViewModel {
         val factory = BackendStatusViewModelFactory(repositories)
-        return ViewModelProvider(this, factory)[BackendStatusViewModel::class.java]
+        return ViewModelProvider(this, factory).get(
+            BackendEndpointViewModelKeys.statusKey(endpointMode),
+            BackendStatusViewModel::class.java
+        )
+    }
+
+    private fun buildRepositories(endpointMode: BackendEndpointMode): BackendRepositoryBundle {
+        val endpoints = if (endpointMode == BackendEndpointMode.Cloud) {
+            buildEndpoints(
+                healthUrlResId = R.string.backend_health_url_cloud,
+                authUrlResId = R.string.backend_auth_url_cloud,
+                todosUrlResId = R.string.backend_todos_url_cloud
+            )
+        } else {
+            buildEndpoints(
+                healthUrlResId = R.string.backend_health_url,
+                authUrlResId = R.string.backend_auth_url,
+                todosUrlResId = R.string.backend_todos_url
+            )
+        }
+        return MainActivityDependencies.repositoryFactory(applicationContext, endpoints)
+    }
+
+    private fun resolveEndpointMode(): BackendEndpointMode {
+        return if (isDebugBuild() && !backendEndpointSelector.useCloud()) {
+            BackendEndpointMode.Local
+        } else {
+            BackendEndpointMode.Cloud
+        }
+    }
+
+    private fun buildEndpoints(
+        healthUrlResId: Int,
+        authUrlResId: Int,
+        todosUrlResId: Int
+    ): BackendEndpoints {
+        return BackendEndpoints(
+            healthUrl = URL(getString(healthUrlResId)),
+            authUrl = URL(getString(authUrlResId)),
+            todosUrl = URL(getString(todosUrlResId))
+        )
+    }
+
+    private fun configureBackendEndpointSwitch() {
+        if (!isDebugBuild()) {
+            backendEndpointSwitch.visibility = View.GONE
+            return
+        }
+        backendEndpointSwitch.visibility = View.VISIBLE
+        backendEndpointSwitch.setOnCheckedChangeListener(null)
+        backendEndpointSwitch.isChecked = backendEndpointSelector.useCloud()
+        backendEndpointSwitch.setOnCheckedChangeListener { _, isChecked ->
+            backendEndpointSelector.setUseCloud(isChecked)
+            recreate()
+        }
+    }
+
+    private fun isDebugBuild(): Boolean {
+        return (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
     }
 
     private fun renderHealthStatus(status: HealthStatus) {
@@ -419,6 +495,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderAuthStatus(status: AuthStatus) {
+        googleSignInButton.isEnabled = status !is AuthStatus.Authenticating
         authStatusText.text = when (status) {
             AuthStatus.SignedOut -> getString(R.string.auth_status_initial)
             AuthStatus.SigningIn -> getString(R.string.auth_status_signing_in)

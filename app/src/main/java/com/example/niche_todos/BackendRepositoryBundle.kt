@@ -4,5 +4,6 @@ package com.example.niche_todos
 
 data class BackendRepositoryBundle(
     val healthRepository: HealthRepository,
-    val authRepository: AuthRepository
+    val authRepository: AuthRepository,
+    val todoRepository: TodoRepository
 )

@@ -36,7 +36,8 @@ class BackendAuthRepositoryTest {
             ),
             endpoints = BackendEndpoints(
                 healthUrl = URL("https://example.com/healthz"),
-                authUrl = URL("https://example.com/auth/google")
+                authUrl = URL("https://example.com/auth/google"),
+                todosUrl = URL("https://example.com/todos")
             ),
             tokenStore = tokenStore
         )
@@ -64,7 +65,8 @@ class BackendAuthRepositoryTest {
             ),
             endpoints = BackendEndpoints(
                 healthUrl = URL("https://example.com/healthz"),
-                authUrl = URL("https://example.com/auth/google")
+                authUrl = URL("https://example.com/auth/google"),
+                todosUrl = URL("https://example.com/todos")
             ),
             tokenStore = tokenStore
         )
@@ -89,14 +91,15 @@ class BackendAuthRepositoryTest {
             ),
             endpoints = BackendEndpoints(
                 healthUrl = URL("https://example.com/healthz"),
-                authUrl = URL("https://example.com/auth/google")
+                authUrl = URL("https://example.com/auth/google"),
+                todosUrl = URL("https://example.com/todos")
             ),
             tokenStore = tokenStore
         )
 
         val result = repository.exchangeGoogleIdToken("token-123")
 
-        assertEquals(AuthResult.Failure(500, "Authentication failed"), result)
+        assertEquals(AuthResult.Failure(500, null), result)
         assertNull(tokenStore.savedTokens)
     }
 }
