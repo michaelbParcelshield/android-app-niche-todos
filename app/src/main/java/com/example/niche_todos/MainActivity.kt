@@ -57,8 +57,12 @@ class MainActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
 
-        viewModel = ViewModelProvider(this)[TodoViewModel::class.java]
-        backendStatusViewModel = buildBackendStatusViewModel()
+        val repositories = buildRepositories()
+        viewModel = ViewModelProvider(
+            this,
+            TodoViewModelFactory(repositories.todoRepository)
+        )[TodoViewModel::class.java]
+        backendStatusViewModel = buildBackendStatusViewModel(repositories)
 
         recyclerView = findViewById(R.id.recycler_todos)
         emptyStateText = findViewById(R.id.text_empty_state)
@@ -89,6 +93,9 @@ class MainActivity : AppCompatActivity() {
         }
         backendStatusViewModel.authStatus.observe(this) { status ->
             renderAuthStatus(status)
+            if (status is AuthStatus.Success) {
+                viewModel.refreshTodos()
+            }
         }
 
         binding.fab.setOnClickListener {
@@ -102,6 +109,8 @@ class MainActivity : AppCompatActivity() {
         googleSignInButton.setOnClickListener {
             startGoogleSignIn()
         }
+
+        viewModel.refreshTodos()
     }
 
     private fun formatDateTime(dateTime: LocalDateTime?): String {
@@ -392,14 +401,20 @@ class MainActivity : AppCompatActivity() {
         ItemTouchHelper(touchHelperCallback).attachToRecyclerView(recyclerView)
     }
 
-    private fun buildBackendStatusViewModel(): BackendStatusViewModel {
-        val endpoints = BackendEndpoints(
-            healthUrl = URL(getString(R.string.backend_health_url)),
-            authUrl = URL(getString(R.string.backend_auth_url))
-        )
-        val repositories = MainActivityDependencies.repositoryFactory(applicationContext, endpoints)
+    private fun buildBackendStatusViewModel(
+        repositories: BackendRepositoryBundle
+    ): BackendStatusViewModel {
         val factory = BackendStatusViewModelFactory(repositories)
         return ViewModelProvider(this, factory)[BackendStatusViewModel::class.java]
+    }
+
+    private fun buildRepositories(): BackendRepositoryBundle {
+        val endpoints = BackendEndpoints(
+            healthUrl = URL(getString(R.string.backend_health_url)),
+            authUrl = URL(getString(R.string.backend_auth_url)),
+            todosUrl = URL(getString(R.string.backend_todos_url))
+        )
+        return MainActivityDependencies.repositoryFactory(applicationContext, endpoints)
     }
 
     private fun renderHealthStatus(status: HealthStatus) {

@@ -7,6 +7,7 @@ import android.content.Context
 object MainActivityDependencies {
     private val defaultRepositoryFactory: (Context, BackendEndpoints) -> BackendRepositoryBundle =
         { context, endpoints ->
+            val tokenStore = EncryptedAuthTokenStore(context.applicationContext)
             BackendRepositoryBundle(
                 healthRepository = BackendHealthRepository(
                     client = HealthCheckClient(),
@@ -15,7 +16,12 @@ object MainActivityDependencies {
                 authRepository = BackendAuthRepository(
                     client = BackendAuthClient(),
                     endpoints = endpoints,
-                    tokenStore = EncryptedAuthTokenStore(context.applicationContext)
+                    tokenStore = tokenStore
+                ),
+                todoRepository = BackendTodoRepository(
+                    client = BackendTodoClient(),
+                    endpoints = endpoints,
+                    tokenStore = tokenStore
                 )
             )
         }

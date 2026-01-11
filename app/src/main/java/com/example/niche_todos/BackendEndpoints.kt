@@ -6,5 +6,6 @@ import java.net.URL
 
 data class BackendEndpoints(
     val healthUrl: URL,
-    val authUrl: URL
+    val authUrl: URL,
+    val todosUrl: URL
 )

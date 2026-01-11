@@ -15,7 +15,8 @@ class BackendHealthRepositoryTest {
             client = FakeHealthClient(503),
             endpoints = BackendEndpoints(
                 healthUrl = URL("https://example.com/healthz"),
-                authUrl = URL("https://example.com/auth/google")
+                authUrl = URL("https://example.com/auth/google"),
+                todosUrl = URL("https://example.com/todos")
             )
         )
 
