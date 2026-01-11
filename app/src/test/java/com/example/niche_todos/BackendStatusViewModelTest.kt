@@ -45,4 +45,22 @@ class BackendStatusViewModelTest {
 
         assertEquals(AuthStatus.Failure(401, "Unauthorized"), viewModel.authStatus.value)
     }
+
+    @Test
+    fun runHealthCheck_updatesStatusToFailure() = runTest {
+        val viewModel = BackendStatusViewModel(
+            healthRepository = FakeHealthRepository(
+                HealthCheckResult.Failure(503, "Service unavailable")
+            ),
+            authRepository = FakeAuthRepository()
+        )
+
+        viewModel.runHealthCheck()
+        advanceUntilIdle()
+
+        assertEquals(
+            HealthStatus.Failure(503, "Service unavailable"),
+            viewModel.healthStatus.value
+        )
+    }
 }

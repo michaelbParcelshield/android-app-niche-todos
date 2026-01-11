@@ -26,3 +26,25 @@ class FakeAuthRepository(
 ) : AuthRepository {
     override suspend fun exchangeGoogleIdToken(idToken: String): AuthResult = result
 }
+
+class FakeBackendAuthClient(
+    private val response: BackendAuthResponse?
+) : AuthClient {
+    override suspend fun exchangeGoogleIdToken(url: java.net.URL, idToken: String): BackendAuthResponse? {
+        return response
+    }
+}
+
+class FakeAuthTokenStore : AuthTokenStore {
+    var savedTokens: AuthTokens? = null
+
+    override fun save(tokens: AuthTokens) {
+        savedTokens = tokens
+    }
+
+    override fun load(): AuthTokens? = savedTokens
+
+    override fun clear() {
+        savedTokens = null
+    }
+}

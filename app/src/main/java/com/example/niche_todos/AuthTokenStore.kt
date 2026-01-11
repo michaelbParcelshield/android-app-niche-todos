@@ -3,6 +3,9 @@
 package com.example.niche_todos
 
 import android.content.Context
+import android.util.Log
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -12,12 +15,19 @@ interface AuthTokenStore {
     fun clear()
 }
 
-class SharedPreferencesAuthTokenStore(
+class EncryptedAuthTokenStore(
     context: Context,
     private val json: Json = Json { ignoreUnknownKeys = true }
 ) : AuthTokenStore {
-    private val preferences =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val preferences = EncryptedSharedPreferences.create(
+        context,
+        PREFS_NAME,
+        MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build(),
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
 
     override fun save(tokens: AuthTokens) {
         preferences.edit()
@@ -28,6 +38,9 @@ class SharedPreferencesAuthTokenStore(
     override fun load(): AuthTokens? {
         val payload = preferences.getString(KEY_AUTH_TOKENS, null) ?: return null
         return runCatching { json.decodeFromString(AuthTokens.serializer(), payload) }
+            .onFailure { error ->
+                Log.w(TAG, "Failed to decode auth tokens", error)
+            }
             .getOrNull()
     }
 
@@ -38,6 +51,7 @@ class SharedPreferencesAuthTokenStore(
     }
 
     private companion object {
+        private const val TAG = "AuthTokenStore"
         private const val PREFS_NAME = "auth_tokens"
         private const val KEY_AUTH_TOKENS = "auth_tokens_json"
     }

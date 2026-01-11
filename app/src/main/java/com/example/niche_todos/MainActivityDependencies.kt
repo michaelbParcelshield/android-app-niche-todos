@@ -5,9 +5,9 @@ package com.example.niche_todos
 import android.content.Context
 
 object MainActivityDependencies {
-    private val defaultRepositoryFactory: (Context, BackendEndpoints) -> BackendRepositories =
+    private val defaultRepositoryFactory: (Context, BackendEndpoints) -> BackendRepositoryBundle =
         { context, endpoints ->
-            BackendRepositories(
+            BackendRepositoryBundle(
                 healthRepository = BackendHealthRepository(
                     client = HealthCheckClient(),
                     endpoints = endpoints
@@ -15,7 +15,7 @@ object MainActivityDependencies {
                 authRepository = BackendAuthRepository(
                     client = BackendAuthClient(),
                     endpoints = endpoints,
-                    tokenStore = SharedPreferencesAuthTokenStore(context.applicationContext)
+                    tokenStore = EncryptedAuthTokenStore(context.applicationContext)
                 )
             )
         }
@@ -25,7 +25,7 @@ object MainActivityDependencies {
             GoogleSignInFacadeImpl(context, serverClientId)
         }
 
-    var repositoryFactory: (Context, BackendEndpoints) -> BackendRepositories =
+    var repositoryFactory: (Context, BackendEndpoints) -> BackendRepositoryBundle =
         defaultRepositoryFactory
     var googleSignInFacadeFactory: (Context, String) -> GoogleSignInFacade =
         defaultGoogleSignInFacadeFactory

@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 
 class BackendStatusViewModelFactory(
-    private val repositories: BackendRepositories
+    private val repositories: BackendRepositoryBundle
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(BackendStatusViewModel::class.java)) {

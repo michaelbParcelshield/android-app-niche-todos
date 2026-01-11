@@ -16,16 +16,22 @@ data class BackendAuthResponse(
     val errorBody: String?
 )
 
+interface AuthClient {
+    suspend fun exchangeGoogleIdToken(url: URL, idToken: String): BackendAuthResponse?
+}
+
 class BackendAuthClient(
-    private val json: Json = Json { ignoreUnknownKeys = true }
-) {
-    suspend fun exchangeGoogleIdToken(url: URL, idToken: String): BackendAuthResponse? {
+    private val json: Json = Json { ignoreUnknownKeys = true },
+    private val connectTimeoutMs: Int = DEFAULT_CONNECT_TIMEOUT_MS,
+    private val readTimeoutMs: Int = DEFAULT_READ_TIMEOUT_MS
+) : AuthClient {
+    override suspend fun exchangeGoogleIdToken(url: URL, idToken: String): BackendAuthResponse? {
         return withContext(Dispatchers.IO) {
             val connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "POST"
             connection.doOutput = true
-            connection.connectTimeout = 5000
-            connection.readTimeout = 5000
+            connection.connectTimeout = connectTimeoutMs
+            connection.readTimeout = readTimeoutMs
             connection.setRequestProperty("Content-Type", "application/json")
             val payload = json.encodeToString(GoogleAuthRequest.serializer(), GoogleAuthRequest(idToken))
 
@@ -69,5 +75,10 @@ class BackendAuthClient(
             connection.errorStream
         }
         return stream?.bufferedReader()?.use { it.readText() }
+    }
+
+    private companion object {
+        private const val DEFAULT_CONNECT_TIMEOUT_MS = 5000
+        private const val DEFAULT_READ_TIMEOUT_MS = 5000
     }
 }

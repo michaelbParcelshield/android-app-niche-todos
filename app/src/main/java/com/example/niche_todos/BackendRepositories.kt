@@ -29,13 +29,14 @@ class BackendHealthRepository(
         return if (statusCode == 200) {
             HealthCheckResult.Success(statusCode)
         } else {
-            HealthCheckResult.Failure(statusCode, "Unexpected status")
+            val statusLabel = statusCode?.toString() ?: "unknown"
+            HealthCheckResult.Failure(statusCode, "Unexpected status: $statusLabel")
         }
     }
 }
 
 class BackendAuthRepository(
-    private val client: BackendAuthClient,
+    private val client: AuthClient,
     private val endpoints: BackendEndpoints,
     private val tokenStore: AuthTokenStore
 ) : AuthRepository {

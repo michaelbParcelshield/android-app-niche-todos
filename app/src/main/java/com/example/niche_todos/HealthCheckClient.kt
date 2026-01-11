@@ -8,13 +8,16 @@ import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class HealthCheckClient {
+class HealthCheckClient(
+    private val connectTimeoutMs: Int = DEFAULT_CONNECT_TIMEOUT_MS,
+    private val readTimeoutMs: Int = DEFAULT_READ_TIMEOUT_MS
+) {
     suspend fun fetchStatusCode(url: URL): Int? {
         return withContext(Dispatchers.IO) {
             val connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "GET"
-            connection.connectTimeout = 5000
-            connection.readTimeout = 5000
+            connection.connectTimeout = connectTimeoutMs
+            connection.readTimeout = readTimeoutMs
 
             try {
                 connection.responseCode
@@ -24,5 +27,10 @@ class HealthCheckClient {
                 connection.disconnect()
             }
         }
+    }
+
+    private companion object {
+        private const val DEFAULT_CONNECT_TIMEOUT_MS = 5000
+        private const val DEFAULT_READ_TIMEOUT_MS = 5000
     }
 }

@@ -2,7 +2,7 @@
 // ABOUTME: Keeps health and auth repositories grouped for factory usage.
 package com.example.niche_todos
 
-data class BackendRepositories(
+data class BackendRepositoryBundle(
     val healthRepository: HealthRepository,
     val authRepository: AuthRepository
 )
