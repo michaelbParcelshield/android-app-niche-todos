@@ -6,6 +6,7 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.DialogInterface
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.text.format.DateFormat
 import android.view.View
@@ -28,6 +29,7 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.ZoneId
 import java.util.Locale
+import androidx.appcompat.widget.SwitchCompat
 
 class MainActivity : AppCompatActivity() {
 
@@ -41,6 +43,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var healthStatusText: TextView
     private lateinit var googleSignInButton: Button
     private lateinit var authStatusText: TextView
+    private lateinit var backendEndpointSwitch: SwitchCompat
+    private lateinit var backendEndpointSelector: BackendEndpointSelector
     private lateinit var googleSignInFacade: GoogleSignInFacade
     private val googleSignInResultHandler = GoogleSignInResultHandler()
     private val googleSignInLauncher = registerForActivityResult(
@@ -57,6 +61,7 @@ class MainActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
 
+        backendEndpointSelector = BackendEndpointSelector(applicationContext)
         val repositories = buildRepositories()
         viewModel = ViewModelProvider(
             this,
@@ -70,6 +75,7 @@ class MainActivity : AppCompatActivity() {
         healthStatusText = findViewById(R.id.text_health_status)
         googleSignInButton = findViewById(R.id.button_google_sign_in)
         authStatusText = findViewById(R.id.text_auth_status)
+        backendEndpointSwitch = findViewById(R.id.switch_backend_endpoint)
         googleSignInFacade = MainActivityDependencies.googleSignInFacadeFactory(
             this,
             getString(R.string.google_web_client_id)
@@ -110,6 +116,7 @@ class MainActivity : AppCompatActivity() {
             startGoogleSignIn()
         }
 
+        configureBackendEndpointSwitch()
         viewModel.refreshTodos()
     }
 
@@ -409,12 +416,55 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun buildRepositories(): BackendRepositoryBundle {
-        val endpoints = BackendEndpoints(
-            healthUrl = URL(getString(R.string.backend_health_url)),
-            authUrl = URL(getString(R.string.backend_auth_url)),
-            todosUrl = URL(getString(R.string.backend_todos_url))
-        )
+        val useCloud = if (isDebugBuild()) {
+            backendEndpointSelector.useCloud()
+        } else {
+            true
+        }
+        val endpoints = if (useCloud) {
+            buildEndpoints(
+                healthUrlResId = R.string.backend_health_url_cloud,
+                authUrlResId = R.string.backend_auth_url_cloud,
+                todosUrlResId = R.string.backend_todos_url_cloud
+            )
+        } else {
+            buildEndpoints(
+                healthUrlResId = R.string.backend_health_url,
+                authUrlResId = R.string.backend_auth_url,
+                todosUrlResId = R.string.backend_todos_url
+            )
+        }
         return MainActivityDependencies.repositoryFactory(applicationContext, endpoints)
+    }
+
+    private fun buildEndpoints(
+        healthUrlResId: Int,
+        authUrlResId: Int,
+        todosUrlResId: Int
+    ): BackendEndpoints {
+        return BackendEndpoints(
+            healthUrl = URL(getString(healthUrlResId)),
+            authUrl = URL(getString(authUrlResId)),
+            todosUrl = URL(getString(todosUrlResId))
+        )
+    }
+
+    private fun configureBackendEndpointSwitch() {
+        if (!isDebugBuild()) {
+            backendEndpointSwitch.visibility = View.GONE
+            return
+        }
+        backendEndpointSwitch.visibility = View.VISIBLE
+        backendEndpointSwitch.setOnCheckedChangeListener(null)
+        backendEndpointSwitch.isChecked = backendEndpointSelector.useCloud()
+        backendEndpointSwitch.setOnCheckedChangeListener { _, isChecked ->
+            backendEndpointSelector.setUseCloud(isChecked)
+            recreate()
+        }
+    }
+
+    private fun isDebugBuild(): Boolean {
+        return (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
     }
 
     private fun renderHealthStatus(status: HealthStatus) {
