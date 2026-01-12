@@ -137,7 +137,8 @@ class MainActivitySignInInstrumentedTest {
             title: String,
             startDateTime: java.time.LocalDateTime?,
             endDateTime: java.time.LocalDateTime?,
-            isCompleted: Boolean
+            isCompleted: Boolean,
+            parentId: String?
         ): TodoSyncResult = TodoSyncResult.Success(emptyList(), 200)
 
         override suspend fun updateTodo(
@@ -151,7 +152,7 @@ class MainActivitySignInInstrumentedTest {
         override suspend fun deleteTodo(id: String): TodoSyncResult =
             TodoSyncResult.Success(emptyList(), 200)
 
-        override suspend fun reorderTodos(orderedIds: List<String>): TodoSyncResult =
+        override suspend fun reorderTodos(items: List<ReorderTodoItem>): TodoSyncResult =
             TodoSyncResult.Success(emptyList(), 200)
     }
 
