@@ -4,6 +4,11 @@ package com.example.niche_todos
 
 object TodoHierarchyUtils {
 
+    data class ExclusionContext(
+        val todos: List<Todo>,
+        val excludedPosition: Int
+    )
+
     /**
      * Orders todos for hierarchical display using pre-order traversal.
      * Children appear directly after their parent, sorted by sortOrder.
@@ -102,6 +107,141 @@ object TodoHierarchyUtils {
             current = current.parentId?.let { todoById[it] }
         }
         return false
+    }
+
+    /**
+     * Returns the parentId when the item at childPosition is the first child in list order.
+     */
+    fun parentIdForFirstChild(todos: List<Todo>, childPosition: Int): String? {
+        if (childPosition !in todos.indices) return null
+        val child = todos[childPosition]
+        val parentId = child.parentId ?: return null
+        val parentPosition = todos.indexOfFirst { it.id == parentId }
+        if (parentPosition == -1) return null
+        return if (childPosition == parentPosition + 1) parentId else null
+    }
+
+    /**
+     * Returns the parentId when the item at childPosition is the first child in list order.
+     * The child position is provided relative to the unfiltered list.
+     */
+    fun parentIdForFirstChild(context: ExclusionContext, childPosition: Int): String? {
+        val adjustedPosition = adjustPosition(childPosition, context.excludedPosition) ?: return null
+        return parentIdForFirstChild(context.todos, adjustedPosition)
+    }
+
+    /**
+     * Returns the parentId when the target item is immediately followed by its first child.
+     */
+    fun parentIdForTrailingEdge(todos: List<Todo>, targetPosition: Int): String? {
+        if (targetPosition !in todos.indices) return null
+        val nextPosition = targetPosition + 1
+        if (nextPosition !in todos.indices) return null
+        val target = todos[targetPosition]
+        val next = todos[nextPosition]
+        val nextParentId = next.parentId ?: return null
+        return if (nextParentId == target.id) target.id else null
+    }
+
+    /**
+     * Returns the parentId when the target item is immediately followed by its first child.
+     * The target position is provided relative to the unfiltered list.
+     */
+    fun parentIdForTrailingEdge(context: ExclusionContext, targetPosition: Int): String? {
+        val adjustedPosition = adjustPosition(targetPosition, context.excludedPosition) ?: return null
+        return parentIdForTrailingEdge(context.todos, adjustedPosition)
+    }
+
+    /**
+     * Returns the parentId when the child position is first child, ignoring the excluded todo.
+     */
+    fun parentIdForFirstChildExcluding(
+        todos: List<Todo>,
+        childPosition: Int,
+        excludedId: String?
+    ): String? {
+        if (excludedId == null) {
+            return parentIdForFirstChild(todos, childPosition)
+        }
+        val excludedPosition = todos.indexOfFirst { it.id == excludedId }
+        if (excludedPosition == -1) {
+            return parentIdForFirstChild(todos, childPosition)
+        }
+        if (childPosition == excludedPosition) return null
+        val adjustedPosition = if (excludedPosition < childPosition) {
+            childPosition - 1
+        } else {
+            childPosition
+        }
+        val filteredTodos = todos.filter { it.id != excludedId }
+        return parentIdForFirstChild(filteredTodos, adjustedPosition)
+    }
+
+    /**
+     * Returns the parentId when the target item is followed by its first child, ignoring the excluded todo.
+     */
+    fun parentIdForTrailingEdgeExcluding(
+        todos: List<Todo>,
+        targetPosition: Int,
+        excludedId: String?
+    ): String? {
+        if (excludedId == null) {
+            return parentIdForTrailingEdge(todos, targetPosition)
+        }
+        val excludedPosition = todos.indexOfFirst { it.id == excludedId }
+        if (excludedPosition == -1) {
+            return parentIdForTrailingEdge(todos, targetPosition)
+        }
+        if (targetPosition == excludedPosition) return null
+        val adjustedPosition = if (excludedPosition < targetPosition) {
+            targetPosition - 1
+        } else {
+            targetPosition
+        }
+        val filteredTodos = todos.filter { it.id != excludedId }
+        return parentIdForTrailingEdge(filteredTodos, adjustedPosition)
+    }
+
+    /**
+     * Returns the parentId when the gap is between parent and its first child, ignoring the excluded todo.
+     */
+    fun parentIdForGapExcluding(
+        todos: List<Todo>,
+        upperId: String,
+        lowerId: String,
+        excludedId: String?
+    ): String? {
+        val context = buildExclusionContext(todos, excludedId)
+        return parentIdForGap(context, upperId, lowerId)
+    }
+
+    /**
+     * Returns the parentId when the gap is between parent and its first child.
+     */
+    fun parentIdForGap(context: ExclusionContext, upperId: String, lowerId: String): String? {
+        val upperIndex = context.todos.indexOfFirst { it.id == upperId }
+        val lowerIndex = context.todos.indexOfFirst { it.id == lowerId }
+        if (upperIndex == -1 || lowerIndex == -1) return null
+        if (lowerIndex != upperIndex + 1) return null
+        val lowerTodo = context.todos[lowerIndex]
+        return if (lowerTodo.parentId == upperId) upperId else null
+    }
+
+    fun buildExclusionContext(todos: List<Todo>, excludedId: String?): ExclusionContext {
+        if (excludedId == null) {
+            return ExclusionContext(todos, -1)
+        }
+        val excludedPosition = todos.indexOfFirst { it.id == excludedId }
+        if (excludedPosition == -1) {
+            return ExclusionContext(todos, -1)
+        }
+        return ExclusionContext(todos.filter { it.id != excludedId }, excludedPosition)
+    }
+
+    private fun adjustPosition(position: Int, excludedPosition: Int): Int? {
+        if (excludedPosition == -1) return position
+        if (position == excludedPosition) return null
+        return if (position > excludedPosition) position - 1 else position
     }
 
     /**

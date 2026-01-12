@@ -22,6 +22,7 @@ class TodoDragCallback(
     private var currentTargetPosition: Int = RecyclerView.NO_POSITION
     private var dropMode: DropMode = DropMode.REORDER
     private var lastHighlightedPosition: Int = RecyclerView.NO_POSITION
+    private var nestParentIdOverride: String? = null
 
     private companion object {
         // Middle 50% of item height triggers nesting; outer 25% on each edge triggers reorder
@@ -71,6 +72,10 @@ class TodoDragCallback(
             var foundTarget = false
             var newTargetPosition = RecyclerView.NO_POSITION
             var newDropMode = DropMode.REORDER
+            var newNestParentIdOverride: String? = null
+            val todos = adapter.currentItems()
+            val draggedTodo = draggedItemId?.let { id -> todos.find { it.id == id } }
+            val exclusionContext = TodoHierarchyUtils.buildExclusionContext(todos, draggedItemId)
 
             for (i in 0 until recyclerView.childCount) {
                 val child = recyclerView.getChildAt(i)
@@ -96,6 +101,27 @@ class TodoDragCallback(
                         newDropMode = DropMode.NEST
                     } else {
                         newDropMode = DropMode.REORDER
+                        if (relativeY < middleStart) {
+                            val parentId = TodoHierarchyUtils.parentIdForFirstChild(
+                                context = exclusionContext,
+                                childPosition = childPosition
+                            )
+                            if (parentId != null &&
+                                isValidParentOverride(draggedTodo, parentId, todos)
+                            ) {
+                                newNestParentIdOverride = parentId
+                            }
+                        } else if (relativeY > middleEnd) {
+                            val parentId = TodoHierarchyUtils.parentIdForTrailingEdge(
+                                context = exclusionContext,
+                                targetPosition = childPosition
+                            )
+                            if (parentId != null &&
+                                isValidParentOverride(draggedTodo, parentId, todos)
+                            ) {
+                                newNestParentIdOverride = parentId
+                            }
+                        }
                     }
                     break
                 }
@@ -109,19 +135,47 @@ class TodoDragCallback(
                 }
             }
 
+            if (!foundTarget) {
+                val visibleItems = buildVisibleItems(recyclerView, viewHolder)
+                for (i in 0 until visibleItems.size - 1) {
+                    val upper = visibleItems[i]
+                    val lower = visibleItems[i + 1]
+                    if (dragCenterY > upper.bottom && dragCenterY < lower.top) {
+                        val parentId = TodoHierarchyUtils.parentIdForGap(
+                            context = exclusionContext,
+                            upperId = upper.id,
+                            lowerId = lower.id
+                        )
+                        if (parentId != null &&
+                            isValidParentOverride(draggedTodo, parentId, todos)
+                        ) {
+                            newDropMode = DropMode.REORDER
+                            newNestParentIdOverride = parentId
+                        }
+                        break
+                    }
+                }
+            }
+
             currentTargetPosition = newTargetPosition
             dropMode = newDropMode
+            nestParentIdOverride = newNestParentIdOverride
 
-            if (newDropMode == DropMode.NEST && newTargetPosition != RecyclerView.NO_POSITION) {
-                if (lastHighlightedPosition != newTargetPosition) {
-                    adapter.setNestHighlight(newTargetPosition)
-                    lastHighlightedPosition = newTargetPosition
-                }
+            val highlightPosition = if (newDropMode == DropMode.NEST) {
+                newTargetPosition
             } else {
-                if (lastHighlightedPosition != RecyclerView.NO_POSITION) {
-                    adapter.clearHighlights()
-                    lastHighlightedPosition = RecyclerView.NO_POSITION
+                newNestParentIdOverride?.let { parentId ->
+                    todos.indexOfFirst { it.id == parentId }
+                } ?: RecyclerView.NO_POSITION
+            }
+            if (highlightPosition != RecyclerView.NO_POSITION) {
+                if (lastHighlightedPosition != highlightPosition) {
+                    adapter.setNestHighlight(highlightPosition)
+                    lastHighlightedPosition = highlightPosition
                 }
+            } else if (lastHighlightedPosition != RecyclerView.NO_POSITION) {
+                adapter.clearHighlights()
+                lastHighlightedPosition = RecyclerView.NO_POSITION
             }
         }
 
@@ -193,8 +247,23 @@ class TodoDragCallback(
                 }
             }
             DropMode.REORDER -> {
-                val items = buildReorderItemsFromCurrentOrder(todos)
-                onDragComplete(items)
+                val parentOverride = nestParentIdOverride
+                if (parentOverride != null && parentOverride != draggedTodo.parentId) {
+                    val parentTodo = todos.find { it.id == parentOverride }
+                    if (parentTodo != null && !wouldCreateCycle(draggedTodo, parentTodo, todos)) {
+                        val items = buildReorderItemsWithNesting(
+                            todos,
+                            draggedTodo.id,
+                            parentOverride
+                        )
+                        onDragComplete(items)
+                    } else {
+                        onInvalidDrop()
+                    }
+                } else {
+                    val items = buildReorderItemsFromCurrentOrder(todos)
+                    onDragComplete(items)
+                }
             }
         }
 
@@ -214,7 +283,44 @@ class TodoDragCallback(
         currentTargetPosition = RecyclerView.NO_POSITION
         dropMode = DropMode.REORDER
         lastHighlightedPosition = RecyclerView.NO_POSITION
+        nestParentIdOverride = null
     }
+
+    private fun buildVisibleItems(
+        recyclerView: RecyclerView,
+        draggedHolder: RecyclerView.ViewHolder
+    ): List<VisibleItem> {
+        val items = mutableListOf<VisibleItem>()
+        for (i in 0 until recyclerView.childCount) {
+            val child = recyclerView.getChildAt(i)
+            val holder = recyclerView.getChildViewHolder(child)
+            if (holder == draggedHolder) continue
+            val position = holder.adapterPosition
+            if (position == RecyclerView.NO_POSITION) continue
+            val todo = adapter.getItem(position)
+            items.add(
+                VisibleItem(
+                    id = todo.id,
+                    top = child.top.toFloat(),
+                    bottom = child.bottom.toFloat()
+                )
+            )
+        }
+        return items.sortedBy { it.top }
+    }
+
+    private fun isValidParentOverride(draggedTodo: Todo?, parentId: String, todos: List<Todo>): Boolean {
+        if (draggedTodo == null) return false
+        if (draggedTodo.parentId == parentId) return false
+        val parentTodo = todos.find { it.id == parentId } ?: return false
+        return !wouldCreateCycle(draggedTodo, parentTodo, todos)
+    }
+
+    private data class VisibleItem(
+        val id: String,
+        val top: Float,
+        val bottom: Float
+    )
 
     private fun wouldCreateCycle(dragged: Todo, target: Todo, allTodos: List<Todo>): Boolean =
         TodoHierarchyUtils.wouldCreateCycle(dragged, target, allTodos)

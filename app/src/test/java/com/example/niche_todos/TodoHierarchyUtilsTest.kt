@@ -414,4 +414,333 @@ class TodoHierarchyUtilsTest {
         assertNull(child1?.parentId)
         assertEquals("parent", child2?.parentId)
     }
+
+    // ========== parentIdForFirstChild tests ==========
+
+    @Test
+    fun parentIdForFirstChild_firstChild_returnsParentId() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("child1", parentId = "parent"),
+            makeTodo("child2", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForFirstChild(
+            todos = todos,
+            childPosition = 1
+        )
+
+        assertEquals("parent", result)
+    }
+
+    @Test
+    fun parentIdForFirstChild_nonFirstChild_returnsNull() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("child1", parentId = "parent"),
+            makeTodo("child2", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForFirstChild(
+            todos = todos,
+            childPosition = 2
+        )
+
+        assertNull(result)
+    }
+
+    @Test
+    fun parentIdForFirstChild_missingParent_returnsNull() {
+        val todos = listOf(
+            makeTodo("child1", parentId = "missing-parent")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForFirstChild(
+            todos = todos,
+            childPosition = 0
+        )
+
+        assertNull(result)
+    }
+
+    @Test
+    fun parentIdForFirstChild_rootItem_returnsNull() {
+        val todos = listOf(
+            makeTodo("root")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForFirstChild(
+            todos = todos,
+            childPosition = 0
+        )
+
+        assertNull(result)
+    }
+
+    // ========== parentIdForTrailingEdge tests ==========
+
+    @Test
+    fun parentIdForTrailingEdge_parentWithFirstChild_returnsParentId() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("child1", parentId = "parent"),
+            makeTodo("child2", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForTrailingEdge(
+            todos = todos,
+            targetPosition = 0
+        )
+
+        assertEquals("parent", result)
+    }
+
+    @Test
+    fun parentIdForTrailingEdge_parentWithoutChildren_returnsNull() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("sibling")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForTrailingEdge(
+            todos = todos,
+            targetPosition = 0
+        )
+
+        assertNull(result)
+    }
+
+    @Test
+    fun parentIdForTrailingEdge_lastItem_returnsNull() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForTrailingEdge(
+            todos = todos,
+            targetPosition = 1
+        )
+
+        assertNull(result)
+    }
+
+    @Test
+    fun parentIdForTrailingEdge_nonParentTarget_returnsNull() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("child1", parentId = "parent"),
+            makeTodo("child2", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForTrailingEdge(
+            todos = todos,
+            targetPosition = 1
+        )
+
+        assertNull(result)
+    }
+
+    // ========== parentIdForFirstChildExcluding tests ==========
+
+    @Test
+    fun parentIdForFirstChildExcluding_ignoresExcludedItem() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("dragged"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForFirstChildExcluding(
+            todos = todos,
+            childPosition = 2,
+            excludedId = "dragged"
+        )
+
+        assertEquals("parent", result)
+    }
+
+    @Test
+    fun parentIdForFirstChildExcluding_excludedIsChild_returnsNull() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForFirstChildExcluding(
+            todos = todos,
+            childPosition = 1,
+            excludedId = "child"
+        )
+
+        assertNull(result)
+    }
+
+    @Test
+    fun parentIdForFirstChildExcluding_missingExcludedId_usesOriginalPositions() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForFirstChildExcluding(
+            todos = todos,
+            childPosition = 1,
+            excludedId = "missing"
+        )
+
+        assertEquals("parent", result)
+    }
+
+    // ========== parentIdForTrailingEdgeExcluding tests ==========
+
+    @Test
+    fun parentIdForTrailingEdgeExcluding_ignoresExcludedItem() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("dragged"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForTrailingEdgeExcluding(
+            todos = todos,
+            targetPosition = 0,
+            excludedId = "dragged"
+        )
+
+        assertEquals("parent", result)
+    }
+
+    @Test
+    fun parentIdForTrailingEdgeExcluding_excludedIsTarget_returnsNull() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForTrailingEdgeExcluding(
+            todos = todos,
+            targetPosition = 0,
+            excludedId = "parent"
+        )
+
+        assertNull(result)
+    }
+
+    @Test
+    fun parentIdForTrailingEdgeExcluding_outOfRange_returnsNull() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForTrailingEdgeExcluding(
+            todos = todos,
+            targetPosition = 5,
+            excludedId = "child"
+        )
+
+        assertNull(result)
+    }
+
+    // ========== parentIdForGapExcluding tests ==========
+
+    @Test
+    fun parentIdForGapExcluding_parentBeforeFirstChild_returnsParentId() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("dragged"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForGapExcluding(
+            todos = todos,
+            upperId = "parent",
+            lowerId = "child",
+            excludedId = "dragged"
+        )
+
+        assertEquals("parent", result)
+    }
+
+    @Test
+    fun parentIdForGapExcluding_nonAdjacentItems_returnsNull() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("child", parentId = "parent"),
+            makeTodo("sibling")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForGapExcluding(
+            todos = todos,
+            upperId = "parent",
+            lowerId = "sibling",
+            excludedId = null
+        )
+
+        assertNull(result)
+    }
+
+    @Test
+    fun parentIdForGapExcluding_excludedIsUpper_returnsNull() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.parentIdForGapExcluding(
+            todos = todos,
+            upperId = "parent",
+            lowerId = "child",
+            excludedId = "parent"
+        )
+
+        assertNull(result)
+    }
+
+    // ========== exclusion context tests ==========
+
+    @Test
+    fun exclusionContext_firstChild_adjustsPositions() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("dragged"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val context = TodoHierarchyUtils.buildExclusionContext(todos, "dragged")
+
+        val result = TodoHierarchyUtils.parentIdForFirstChild(context, childPosition = 2)
+
+        assertEquals("parent", result)
+    }
+
+    @Test
+    fun exclusionContext_trailingEdge_excludedTarget_returnsNull() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val context = TodoHierarchyUtils.buildExclusionContext(todos, "parent")
+
+        val result = TodoHierarchyUtils.parentIdForTrailingEdge(context, targetPosition = 0)
+
+        assertNull(result)
+    }
+
+    @Test
+    fun exclusionContext_gap_betweenParentAndChild_returnsParentId() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("dragged"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val context = TodoHierarchyUtils.buildExclusionContext(todos, "dragged")
+
+        val result = TodoHierarchyUtils.parentIdForGap(context, upperId = "parent", lowerId = "child")
+
+        assertEquals("parent", result)
+    }
 }
