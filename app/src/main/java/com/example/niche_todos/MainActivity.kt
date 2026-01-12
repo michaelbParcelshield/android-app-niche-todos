@@ -88,7 +88,8 @@ class MainActivity : AppCompatActivity() {
         adapter = TodoAdapter(
             onToggleComplete = { id -> viewModel.toggleComplete(id) },
             onEdit = { todo -> showEditDialog(todo) },
-            onDelete = { id -> viewModel.deleteTodo(id) }
+            onDelete = { id -> viewModel.deleteTodo(id) },
+            onAddSubtask = { parentId -> showAddSubtaskDialog(parentId) }
         )
 
         recyclerView.adapter = adapter
@@ -360,6 +361,59 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    private fun showAddSubtaskDialog(parentId: String) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_todo, null)
+        val titleInput: TextInputEditText = dialogView.findViewById(R.id.input_title)
+        val startButton: Button = dialogView.findViewById(R.id.button_start)
+        val endButton: Button = dialogView.findViewById(R.id.button_end)
+        val startValue: TextView = dialogView.findViewById(R.id.text_start_value)
+        val endValue: TextView = dialogView.findViewById(R.id.text_end_value)
+
+        val (defaultStart, defaultEnd) = viewModel.defaultDateRange()
+
+        var startDateTime: LocalDateTime? = defaultStart
+        var endDateTime: LocalDateTime? = defaultEnd
+
+        startValue.text = formatDateTime(startDateTime)
+        endValue.text = formatDateTime(endDateTime)
+
+        setupStartButtonHandler(
+            startButton,
+            startValue,
+            endValue,
+            { startDateTime },
+            { endDateTime },
+            { startDateTime = it },
+            { endDateTime = it }
+        )
+
+        endButton.setOnClickListener {
+            showDateTimePicker(endDateTime ?: startDateTime, minDateTime = startDateTime) { selected ->
+                endDateTime = selected
+                endValue.text = formatDateTime(selected)
+            }
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.add_subtask)
+            .setView(dialogView)
+            .setPositiveButton(R.string.save) { _, _ ->
+                val normalizedTitle = TodoTitleValidator.normalizedTitleOrNull(titleInput.text)
+                if (normalizedTitle != null) {
+                    viewModel.addTodo(normalizedTitle, startDateTime, endDateTime, parentId)
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .create()
+
+        dialog.configureTitleInputBehavior(
+            titleInput = titleInput,
+            selectAllExistingText = false
+        )
+
+        dialog.show()
+    }
+
     private fun AlertDialog.configureTitleInputBehavior(
         titleInput: TextInputEditText,
         selectAllExistingText: Boolean
@@ -376,40 +430,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun attachDragToReorder() {
-        val touchHelperCallback = object : ItemTouchHelper.SimpleCallback(
-            ItemTouchHelper.UP or ItemTouchHelper.DOWN,
-            0
-        ) {
-            override fun onMove(
-                recyclerView: RecyclerView,
-                viewHolder: RecyclerView.ViewHolder,
-                target: RecyclerView.ViewHolder
-            ): Boolean {
-                val fromPosition = viewHolder.adapterPosition
-                val toPosition = target.adapterPosition
-                if (fromPosition == RecyclerView.NO_POSITION ||
-                    toPosition == RecyclerView.NO_POSITION
-                ) {
-                    return false
-                }
-                adapter.moveItem(fromPosition, toPosition)
-                return true
-            }
+        val dragCallback = TodoDragCallback(
+            adapter = adapter,
+            onDragComplete = { items -> viewModel.reorderTodos(items) },
+            onInvalidDrop = { showCircularReferenceError() }
+        )
+        ItemTouchHelper(dragCallback).attachToRecyclerView(recyclerView)
+    }
 
-            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                // Swipe disabled
-            }
-
-            override fun isLongPressDragEnabled(): Boolean = true
-
-            override fun isItemViewSwipeEnabled(): Boolean = false
-
-            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
-                super.clearView(recyclerView, viewHolder)
-                viewModel.reorderTodos(adapter.currentItems())
-            }
-        }
-        ItemTouchHelper(touchHelperCallback).attachToRecyclerView(recyclerView)
+    private fun showCircularReferenceError() {
+        Toast.makeText(
+            this,
+            R.string.circular_reference_error,
+            Toast.LENGTH_SHORT
+        ).show()
     }
 
     private fun buildBackendStatusViewModel(

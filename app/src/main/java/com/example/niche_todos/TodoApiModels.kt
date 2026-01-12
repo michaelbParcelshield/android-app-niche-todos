@@ -11,7 +11,8 @@ data class TodoPayload(
     val startDateTimeUtc: String? = null,
     val endDateTimeUtc: String? = null,
     val isCompleted: Boolean,
-    val sortOrder: Int
+    val sortOrder: Int,
+    val parentId: String? = null
 )
 
 @Serializable
@@ -19,7 +20,8 @@ data class CreateTodoRequest(
     val title: String,
     val startDateTimeUtc: String? = null,
     val endDateTimeUtc: String? = null,
-    val isCompleted: Boolean
+    val isCompleted: Boolean,
+    val parentId: String? = null
 )
 
 @Serializable
@@ -32,5 +34,12 @@ data class UpdateTodoRequest(
 
 @Serializable
 data class ReorderTodosRequest(
-    val orderedIds: List<String>
+    val items: List<ReorderTodoItem>
+)
+
+@Serializable
+data class ReorderTodoItem(
+    val id: String,
+    val parentId: String? = null,
+    val sortOrder: Int
 )

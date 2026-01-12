@@ -570,7 +570,10 @@ class TodoViewModelTest {
             settleTodos()
 
             val reversed = viewModel.todos.value?.reversed() ?: emptyList()
-            viewModel.reorderTodos(reversed)
+            val reorderItems = reversed.mapIndexed { index, todo ->
+                ReorderTodoItem(id = todo.id, parentId = todo.parentId, sortOrder = index)
+            }
+            viewModel.reorderTodos(reorderItems)
 
             settleTodos()
 
@@ -595,8 +598,8 @@ class TodoViewModelTest {
             viewModel.addTodo("Second", null, null)
 
             val fakeList = listOf(
-                Todo("custom-1", emptyList(), false),
-                Todo("custom-2", emptyList(), false)
+                ReorderTodoItem("custom-1", null, 0),
+                ReorderTodoItem("custom-2", null, 1)
             )
             settleTodos()
 

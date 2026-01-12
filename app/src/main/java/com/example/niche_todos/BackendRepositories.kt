@@ -31,7 +31,8 @@ interface TodoRepository {
         title: String,
         startDateTime: java.time.LocalDateTime?,
         endDateTime: java.time.LocalDateTime?,
-        isCompleted: Boolean
+        isCompleted: Boolean,
+        parentId: String? = null
     ): TodoSyncResult
     suspend fun updateTodo(
         id: String,
@@ -41,7 +42,7 @@ interface TodoRepository {
         isCompleted: Boolean
     ): TodoSyncResult
     suspend fun deleteTodo(id: String): TodoSyncResult
-    suspend fun reorderTodos(orderedIds: List<String>): TodoSyncResult
+    suspend fun reorderTodos(items: List<ReorderTodoItem>): TodoSyncResult
 }
 
 class BackendHealthRepository(
