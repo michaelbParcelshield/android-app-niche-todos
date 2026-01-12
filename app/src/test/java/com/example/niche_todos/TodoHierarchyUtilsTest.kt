@@ -341,6 +341,37 @@ class TodoHierarchyUtilsTest {
         assertEquals(1, result[3].sortOrder)
     }
 
+    // ========== buildReorderItemsWithSiblingDrop tests ==========
+
+    @Test
+    fun buildReorderItemsWithSiblingDrop_betweenSiblings_reparentsDraggedTodo() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("child-a", parentId = "parent"),
+            makeTodo("dragged"),
+            makeTodo("child-b", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.buildReorderItemsWithSiblingDrop(todos, "dragged")
+
+        val draggedItem = result.find { it.id == "dragged" }
+        assertEquals("parent", draggedItem?.parentId)
+    }
+
+    @Test
+    fun buildReorderItemsWithSiblingDrop_betweenRootSiblings_unnestsDraggedTodo() {
+        val todos = listOf(
+            makeTodo("root-a"),
+            makeTodo("dragged", parentId = "root-b"),
+            makeTodo("root-b")
+        )
+
+        val result = TodoHierarchyUtils.buildReorderItemsWithSiblingDrop(todos, "dragged")
+
+        val draggedItem = result.find { it.id == "dragged" }
+        assertNull(draggedItem?.parentId)
+    }
+
     // ========== buildReorderItemsWithNesting tests ==========
 
     @Test

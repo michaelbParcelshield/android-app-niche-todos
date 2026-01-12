@@ -5,6 +5,11 @@ package com.example.niche_todos
 object TodoHierarchyUtils {
 
     /**
+     * Represents the parent to apply when a dragged todo is dropped between siblings.
+     */
+    data class SiblingDropTarget(val parentId: String?)
+
+    /**
      * Orders todos for hierarchical display using pre-order traversal.
      * Children appear directly after their parent, sorted by sortOrder.
      */
@@ -118,6 +123,44 @@ object TodoHierarchyUtils {
                 parentId = todo.parentId,
                 sortOrder = sortOrder
             )
+        }
+    }
+
+    /**
+     * Finds the shared parent when a dragged todo sits between two siblings.
+     */
+    fun findSiblingDropTarget(todos: List<Todo>, draggedId: String): SiblingDropTarget? {
+        val index = todos.indexOfFirst { it.id == draggedId }
+        if (index == -1) return null
+
+        val previous = todos.getOrNull(index - 1)
+        val next = todos.getOrNull(index + 1)
+
+        return if (previous != null && next != null && previous.parentId == next.parentId) {
+            SiblingDropTarget(previous.parentId)
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Builds reorder items that reparent a todo when it is between two siblings.
+     */
+    fun buildReorderItemsWithSiblingDrop(
+        todos: List<Todo>,
+        draggedId: String
+    ): List<ReorderTodoItem> {
+        val draggedTodo = todos.find { it.id == draggedId }
+            ?: return buildReorderItemsFromCurrentOrder(todos)
+        val siblingDropTarget = findSiblingDropTarget(todos, draggedId)
+            ?: return buildReorderItemsFromCurrentOrder(todos)
+
+        return if (siblingDropTarget.parentId == draggedTodo.parentId) {
+            buildReorderItemsFromCurrentOrder(todos)
+        } else if (siblingDropTarget.parentId == null) {
+            buildReorderItemsWithUnnesting(todos, draggedId)
+        } else {
+            buildReorderItemsWithNesting(todos, draggedId, siblingDropTarget.parentId)
         }
     }
 
