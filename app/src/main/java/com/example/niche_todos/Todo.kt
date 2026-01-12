@@ -13,7 +13,9 @@ sealed class TodoProperty {
 data class Todo(
     val id: String,
     val properties: List<TodoProperty>,
-    val isCompleted: Boolean
+    val isCompleted: Boolean,
+    val parentId: String? = null,
+    val sortOrder: Int = 0
 ) {
     val title: String
         get() = properties.filterIsInstance<TodoProperty.Title>().firstOrNull()?.value ?: ""

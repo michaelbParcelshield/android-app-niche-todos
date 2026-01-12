@@ -67,7 +67,12 @@ class TodoViewModel(
         return startDateTime to endDateTime
     }
 
-    fun addTodo(text: String, startDateTime: LocalDateTime?, endDateTime: LocalDateTime?) {
+    fun addTodo(
+        text: String,
+        startDateTime: LocalDateTime?,
+        endDateTime: LocalDateTime?,
+        parentId: String? = null
+    ) {
         val trimmedText = text.trim()
         if (trimmedText.isEmpty()) {
             return
@@ -80,7 +85,8 @@ class TodoViewModel(
                 trimmedText,
                 resolvedStart,
                 resolvedEnd,
-                false
+                false,
+                parentId
             )) {
                 is TodoSyncResult.Success -> _todos.value = result.todos
                 is TodoSyncResult.Failure -> Unit
@@ -160,18 +166,18 @@ class TodoViewModel(
         _todos.value = mutableList.toList()
     }
 
-    fun reorderTodos(newOrder: List<Todo>) {
+    fun reorderTodos(items: List<ReorderTodoItem>) {
         val currentList = _todos.value ?: return
-        if (currentList.size != newOrder.size) {
+        if (currentList.size != items.size) {
             return
         }
         val currentIds = currentList.map { it.id }.toSet()
-        val newIds = newOrder.map { it.id }.toSet()
+        val newIds = items.map { it.id }.toSet()
         if (currentIds != newIds) {
             return
         }
         viewModelScope.launch {
-            when (val result = todoRepository.reorderTodos(newOrder.map { it.id })) {
+            when (val result = todoRepository.reorderTodos(items)) {
                 is TodoSyncResult.Success -> _todos.value = result.todos
                 is TodoSyncResult.Failure -> Unit
             }

@@ -17,10 +17,9 @@ class BackendTodoRepository(
             ?: return TodoSyncResult.Failure(null, "Network error")
 
         return if (response.statusCode in 200..299 && response.body != null) {
-            val todos = response.body
-                .sortedBy { it.sortOrder }
-                .map { payload -> payload.toTodo() }
-            TodoSyncResult.Success(todos, response.statusCode)
+            val todos = response.body.map { payload -> payload.toTodo() }
+            val ordered = orderTodosForHierarchy(todos)
+            TodoSyncResult.Success(ordered, response.statusCode)
         } else {
             TodoSyncResult.Failure(response.statusCode, response.problemDetails?.detail)
         }
@@ -30,7 +29,8 @@ class BackendTodoRepository(
         title: String,
         startDateTime: java.time.LocalDateTime?,
         endDateTime: java.time.LocalDateTime?,
-        isCompleted: Boolean
+        isCompleted: Boolean,
+        parentId: String?
     ): TodoSyncResult {
         val accessToken = tokenStore.load()?.accessToken
             ?: return TodoSyncResult.Failure(null, "Missing access token")
@@ -39,7 +39,8 @@ class BackendTodoRepository(
             title = title,
             startDateTimeUtc = TodoUtcConverter.toUtcString(startDateTime),
             endDateTimeUtc = TodoUtcConverter.toUtcString(endDateTime),
-            isCompleted = isCompleted
+            isCompleted = isCompleted,
+            parentId = parentId
         )
         val response = client.createTodo(endpoints.todosUrl, accessToken, request)
             ?: return TodoSyncResult.Failure(null, "Network error")
@@ -91,14 +92,14 @@ class BackendTodoRepository(
         return fetchTodos()
     }
 
-    override suspend fun reorderTodos(orderedIds: List<String>): TodoSyncResult {
+    override suspend fun reorderTodos(items: List<ReorderTodoItem>): TodoSyncResult {
         val accessToken = tokenStore.load()?.accessToken
             ?: return TodoSyncResult.Failure(null, "Missing access token")
 
         val response = client.reorderTodos(
             reorderUrl(),
             accessToken,
-            ReorderTodosRequest(orderedIds)
+            ReorderTodosRequest(items)
         ) ?: return TodoSyncResult.Failure(null, "Network error")
 
         if (response.statusCode !in 200..299) {
@@ -114,7 +115,13 @@ class BackendTodoRepository(
             TodoProperty.StartDateTime(TodoUtcConverter.fromUtcString(startDateTimeUtc)),
             TodoProperty.EndDateTime(TodoUtcConverter.fromUtcString(endDateTimeUtc))
         )
-        return Todo(id = id, properties = properties, isCompleted = isCompleted)
+        return Todo(
+            id = id,
+            properties = properties,
+            isCompleted = isCompleted,
+            parentId = parentId,
+            sortOrder = sortOrder
+        )
     }
 
     private fun todoUrlForId(id: String): URL = appendPath(endpoints.todosUrl, id)
@@ -126,4 +133,7 @@ class BackendTodoRepository(
         val trimmedSuffix = suffix.trimStart('/')
         return URL("$trimmedBase/$trimmedSuffix")
     }
+
+    private fun orderTodosForHierarchy(todos: List<Todo>): List<Todo> =
+        TodoHierarchyUtils.orderForHierarchy(todos)
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ABOUTME: Layout for individual todo item in RecyclerView -->
-<!-- Contains checkbox for completion, todo text, and edit/delete buttons -->
+<!-- Contains checkbox for completion, todo text, and edit/delete/subtask buttons -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -10,6 +10,7 @@
     app:cardCornerRadius="8dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/content_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="12dp">
@@ -35,7 +36,7 @@
             android:maxLines="2"
             android:ellipsize="end"
             app:layout_constraintStart_toEndOf="@id/checkbox_completed"
-            app:layout_constraintEnd_toStartOf="@id/button_edit"
+            app:layout_constraintEnd_toStartOf="@id/button_add_subtask"
             app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
@@ -49,7 +50,7 @@
             android:maxLines="1"
             android:ellipsize="end"
             app:layout_constraintStart_toEndOf="@id/checkbox_completed"
-            app:layout_constraintEnd_toStartOf="@id/button_edit"
+            app:layout_constraintEnd_toStartOf="@id/button_add_subtask"
             app:layout_constraintTop_toBottomOf="@id/text_todo" />
 
         <TextView
@@ -63,8 +64,19 @@
             android:maxLines="1"
             android:ellipsize="end"
             app:layout_constraintStart_toEndOf="@id/checkbox_completed"
-            app:layout_constraintEnd_toStartOf="@id/button_edit"
+            app:layout_constraintEnd_toStartOf="@id/button_add_subtask"
             app:layout_constraintTop_toBottomOf="@id/text_start_date"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <ImageButton
+            android:id="@+id/button_add_subtask"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_input_add"
+            android:contentDescription="@string/content_desc_add_subtask"
+            app:layout_constraintEnd_toStartOf="@id/button_edit"
+            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />
 
         <ImageButton

@@ -2,6 +2,7 @@
 // Handles binding todo data to item views and user interaction callbacks
 package com.example.niche_todos
 
+import android.graphics.Color
 import android.graphics.Paint
 import android.view.LayoutInflater
 import android.view.View
@@ -9,20 +10,49 @@ import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.ImageButton
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 
 class TodoAdapter(
     private val onToggleComplete: (String) -> Unit,
     private val onEdit: (Todo) -> Unit,
-    private val onDelete: (String) -> Unit
+    private val onDelete: (String) -> Unit,
+    private val onAddSubtask: (String) -> Unit
 ) : RecyclerView.Adapter<TodoAdapter.TodoViewHolder>() {
 
     private val todos: MutableList<Todo> = mutableListOf()
+    private var highlightedPosition: Int = RecyclerView.NO_POSITION
+    private var depthMap: Map<String, Int> = emptyMap()
 
     fun submitList(newTodos: List<Todo>) {
         todos.clear()
         todos.addAll(newTodos)
+        depthMap = buildDepthMap(newTodos)
         notifyDataSetChanged()
+    }
+
+    private fun buildDepthMap(todoList: List<Todo>): Map<String, Int> =
+        TodoHierarchyUtils.buildDepthMap(todoList)
+
+    fun getItem(position: Int): Todo = todos[position]
+
+    fun setNestHighlight(position: Int) {
+        val previousHighlight = highlightedPosition
+        highlightedPosition = position
+        if (previousHighlight != RecyclerView.NO_POSITION) {
+            notifyItemChanged(previousHighlight)
+        }
+        if (position != RecyclerView.NO_POSITION) {
+            notifyItemChanged(position)
+        }
+    }
+
+    fun clearHighlights() {
+        if (highlightedPosition != RecyclerView.NO_POSITION) {
+            val previous = highlightedPosition
+            highlightedPosition = RecyclerView.NO_POSITION
+            notifyItemChanged(previous)
+        }
     }
 
     fun moveItem(fromIndex: Int, toIndex: Int) {
@@ -46,21 +76,28 @@ class TodoAdapter(
     }
 
     override fun onBindViewHolder(holder: TodoViewHolder, position: Int) {
-        holder.bind(todos[position])
+        val todo = todos[position]
+        val depth = depthMap[todo.id] ?: 0
+        val isHighlighted = position == highlightedPosition
+        holder.bind(todo, depth, isHighlighted)
     }
 
     override fun getItemCount(): Int = todos.size
 
     inner class TodoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val cardView: View = itemView
+        private val contentLayout: View = itemView.findViewById(R.id.content_layout)
         private val checkBox: CheckBox = itemView.findViewById(R.id.checkbox_completed)
         private val textView: TextView = itemView.findViewById(R.id.text_todo)
         private val startDateView: TextView = itemView.findViewById(R.id.text_start_date)
         private val endDateView: TextView = itemView.findViewById(R.id.text_end_date)
         private val editButton: ImageButton = itemView.findViewById(R.id.button_edit)
         private val deleteButton: ImageButton = itemView.findViewById(R.id.button_delete)
+        private val addSubtaskButton: ImageButton = itemView.findViewById(R.id.button_add_subtask)
         private val dateTimeFormatter = TodoDateTimeFormatter()
+        private val basePaddingPx = contentLayout.paddingLeft
 
-        fun bind(todo: Todo) {
+        fun bind(todo: Todo, depth: Int, isHighlighted: Boolean) {
             textView.text = todo.title
             checkBox.isChecked = todo.isCompleted
             val notSetLabel = itemView.context.getString(R.string.date_time_not_set)
@@ -76,6 +113,18 @@ class TodoAdapter(
                 todo.endDateTime,
                 notSetLabel
             )
+
+            // Apply indentation based on nesting depth
+            val density = itemView.context.resources.displayMetrics.density
+            val indentPx = (depth * INDENT_PER_LEVEL_DP * density).toInt()
+            contentLayout.setPadding(basePaddingPx + indentPx, contentLayout.paddingTop, contentLayout.paddingRight, contentLayout.paddingBottom)
+
+            // Apply highlight for nest target
+            if (isHighlighted) {
+                cardView.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.nest_highlight))
+            } else {
+                cardView.setBackgroundColor(Color.TRANSPARENT)
+            }
 
             // Apply strikethrough when completed
             if (todo.isCompleted) {
@@ -99,6 +148,14 @@ class TodoAdapter(
             deleteButton.setOnClickListener {
                 onDelete(todo.id)
             }
+
+            addSubtaskButton.setOnClickListener {
+                onAddSubtask(todo.id)
+            }
         }
+    }
+
+    private companion object {
+        const val INDENT_PER_LEVEL_DP = 24
     }
 }

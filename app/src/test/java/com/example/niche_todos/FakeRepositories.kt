@@ -68,7 +68,8 @@ class FakeTodoRepository(
         title: String,
         startDateTime: java.time.LocalDateTime?,
         endDateTime: java.time.LocalDateTime?,
-        isCompleted: Boolean
+        isCompleted: Boolean,
+        parentId: String?
     ): TodoSyncResult {
         if (shouldFail) {
             return TodoSyncResult.Failure(500, "Failure")
@@ -82,7 +83,8 @@ class FakeTodoRepository(
                     TodoProperty.StartDateTime(startDateTime),
                     TodoProperty.EndDateTime(endDateTime)
                 ),
-                isCompleted = isCompleted
+                isCompleted = isCompleted,
+                parentId = parentId
             )
         )
         return respondWithTodos()
@@ -124,18 +126,24 @@ class FakeTodoRepository(
         return respondWithTodos()
     }
 
-    override suspend fun reorderTodos(orderedIds: List<String>): TodoSyncResult {
+    override suspend fun reorderTodos(items: List<ReorderTodoItem>): TodoSyncResult {
         if (shouldFail) {
             return TodoSyncResult.Failure(500, "Failure")
         }
 
         val currentIds = todos.map { it.id }.toSet()
-        val orderedSet = orderedIds.toSet()
-        if (currentIds != orderedSet) {
+        val itemIds = items.map { it.id }.toSet()
+        if (currentIds != itemIds) {
             return TodoSyncResult.Failure(400, "Bad order")
         }
 
-        val reordered = orderedIds.mapNotNull { id -> todos.firstOrNull { it.id == id } }
+        val itemMap = items.associateBy { it.id }
+        val reordered = items.mapNotNull { item ->
+            todos.firstOrNull { it.id == item.id }?.copy(
+                parentId = item.parentId,
+                sortOrder = item.sortOrder
+            )
+        }
         todos.clear()
         todos.addAll(reordered)
         return respondWithTodos()
