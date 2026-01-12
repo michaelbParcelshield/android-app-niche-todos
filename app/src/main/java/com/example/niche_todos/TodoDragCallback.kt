@@ -193,8 +193,31 @@ class TodoDragCallback(
                 }
             }
             DropMode.REORDER -> {
-                val items = buildReorderItemsFromCurrentOrder(todos)
-                onDragComplete(items)
+                val siblingDropTarget = findSiblingDropTarget(todos, draggedTodo.id)
+                val shouldReparent = siblingDropTarget != null &&
+                    siblingDropTarget.parentId != draggedTodo.parentId
+
+                if (shouldReparent && siblingDropTarget?.parentId != null) {
+                    val targetParent = todos.find { it.id == siblingDropTarget.parentId }
+                    if (targetParent == null) {
+                        onInvalidDrop()
+                        val items = buildReorderItemsFromCurrentOrder(todos)
+                        onDragComplete(items)
+                    } else if (wouldCreateCycle(draggedTodo, targetParent, todos)) {
+                        onInvalidDrop()
+                        val items = buildReorderItemsFromCurrentOrder(todos)
+                        onDragComplete(items)
+                    } else {
+                        val items = buildReorderItemsWithSiblingDrop(todos, draggedTodo.id)
+                        onDragComplete(items)
+                    }
+                } else if (shouldReparent) {
+                    val items = buildReorderItemsWithSiblingDrop(todos, draggedTodo.id)
+                    onDragComplete(items)
+                } else {
+                    val items = buildReorderItemsFromCurrentOrder(todos)
+                    onDragComplete(items)
+                }
             }
         }
 
@@ -221,6 +244,18 @@ class TodoDragCallback(
 
     private fun buildReorderItemsFromCurrentOrder(todos: List<Todo>): List<ReorderTodoItem> =
         TodoHierarchyUtils.buildReorderItemsFromCurrentOrder(todos)
+
+    private fun findSiblingDropTarget(
+        todos: List<Todo>,
+        draggedId: String
+    ): TodoHierarchyUtils.SiblingDropTarget? =
+        TodoHierarchyUtils.findSiblingDropTarget(todos, draggedId)
+
+    private fun buildReorderItemsWithSiblingDrop(
+        todos: List<Todo>,
+        draggedId: String
+    ): List<ReorderTodoItem> =
+        TodoHierarchyUtils.buildReorderItemsWithSiblingDrop(todos, draggedId)
 
     private fun buildReorderItemsWithNesting(
         todos: List<Todo>,
