@@ -10,6 +10,7 @@ import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.ImageButton
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 
 class TodoAdapter(
@@ -116,7 +117,7 @@ class TodoAdapter(
         private val deleteButton: ImageButton = itemView.findViewById(R.id.button_delete)
         private val addSubtaskButton: ImageButton = itemView.findViewById(R.id.button_add_subtask)
         private val dateTimeFormatter = TodoDateTimeFormatter()
-        private val indentPerLevel = 24 // dp
+        private val basePaddingPx = contentLayout.paddingLeft
 
         fun bind(todo: Todo, depth: Int, isHighlighted: Boolean) {
             textView.text = todo.title
@@ -137,12 +138,12 @@ class TodoAdapter(
 
             // Apply indentation based on nesting depth
             val density = itemView.context.resources.displayMetrics.density
-            val indentPx = (depth * indentPerLevel * density).toInt()
-            contentLayout.setPadding(indentPx + contentLayout.paddingRight, contentLayout.paddingTop, contentLayout.paddingRight, contentLayout.paddingBottom)
+            val indentPx = (depth * INDENT_PER_LEVEL_DP * density).toInt()
+            contentLayout.setPadding(basePaddingPx + indentPx, contentLayout.paddingTop, contentLayout.paddingRight, contentLayout.paddingBottom)
 
             // Apply highlight for nest target
             if (isHighlighted) {
-                cardView.setBackgroundColor(Color.parseColor("#E3F2FD"))
+                cardView.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.nest_highlight))
             } else {
                 cardView.setBackgroundColor(Color.TRANSPARENT)
             }
@@ -174,5 +175,9 @@ class TodoAdapter(
                 onAddSubtask(todo.id)
             }
         }
+    }
+
+    private companion object {
+        const val INDENT_PER_LEVEL_DP = 24
     }
 }

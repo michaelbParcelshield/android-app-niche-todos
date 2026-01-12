@@ -23,6 +23,15 @@ class TodoDragCallback(
     private var dropMode: DropMode = DropMode.REORDER
     private var lastHighlightedPosition: Int = RecyclerView.NO_POSITION
 
+    private companion object {
+        const val NEST_ZONE_START = 0.25f
+        const val NEST_ZONE_END = 0.75f
+        const val EDGE_THRESHOLD_DP = 50f
+        const val DRAGGING_ELEVATION = 8f
+        const val DEFAULT_ELEVATION = 2f
+        const val DRAGGING_ALPHA = 0.9f
+    }
+
     override fun getMovementFlags(
         recyclerView: RecyclerView,
         viewHolder: RecyclerView.ViewHolder
@@ -38,8 +47,8 @@ class TodoDragCallback(
             if (position != RecyclerView.NO_POSITION) {
                 draggedItemId = adapter.getItem(position).id
             }
-            viewHolder.itemView.elevation = 8f
-            viewHolder.itemView.alpha = 0.9f
+            viewHolder.itemView.elevation = DRAGGING_ELEVATION
+            viewHolder.itemView.alpha = DRAGGING_ALPHA
         }
     }
 
@@ -74,8 +83,8 @@ class TodoDragCallback(
                 if (dragCenterY >= child.top && dragCenterY <= child.bottom) {
                     val itemHeight = child.height.toFloat()
                     val relativeY = dragCenterY - child.top
-                    val middleStart = itemHeight * 0.25f
-                    val middleEnd = itemHeight * 0.75f
+                    val middleStart = itemHeight * NEST_ZONE_START
+                    val middleEnd = itemHeight * NEST_ZONE_END
 
                     newTargetPosition = childPosition
                     foundTarget = true
@@ -91,7 +100,7 @@ class TodoDragCallback(
 
             if (!foundTarget) {
                 val density = recyclerView.context.resources.displayMetrics.density
-                val edgeThreshold = 50 * density
+                val edgeThreshold = EDGE_THRESHOLD_DP * density
                 if (dragCenterY < edgeThreshold || dragCenterY > recyclerView.height - edgeThreshold) {
                     newDropMode = DropMode.UNNEST
                 }
@@ -137,7 +146,7 @@ class TodoDragCallback(
     override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
         super.clearView(recyclerView, viewHolder)
 
-        viewHolder.itemView.elevation = 2f
+        viewHolder.itemView.elevation = DEFAULT_ELEVATION
         viewHolder.itemView.alpha = 1f
         adapter.clearHighlights()
 

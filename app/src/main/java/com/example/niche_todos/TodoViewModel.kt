@@ -94,28 +94,6 @@ class TodoViewModel(
         }
     }
 
-    fun addSubtask(parentId: String, title: String) {
-        val trimmedTitle = title.trim()
-        if (trimmedTitle.isEmpty()) {
-            return
-        }
-
-        val (resolvedStart, resolvedEnd) = prepareAddDates(null, null)
-
-        viewModelScope.launch {
-            when (val result = todoRepository.createTodo(
-                trimmedTitle,
-                resolvedStart,
-                resolvedEnd,
-                false,
-                parentId
-            )) {
-                is TodoSyncResult.Success -> _todos.value = result.todos
-                is TodoSyncResult.Failure -> Unit
-            }
-        }
-    }
-
     fun toggleComplete(id: String) {
         val currentList = _todos.value ?: return
         val todo = currentList.firstOrNull { it.id == id } ?: return
