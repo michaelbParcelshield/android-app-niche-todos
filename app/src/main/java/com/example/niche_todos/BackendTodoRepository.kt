@@ -134,39 +134,6 @@ class BackendTodoRepository(
         return URL("$trimmedBase/$trimmedSuffix")
     }
 
-    private fun orderTodosForHierarchy(todos: List<Todo>): List<Todo> {
-        if (todos.isEmpty()) return emptyList()
-
-        val lookup = todos.associateBy { it.id }
-        val childrenByParent = todos
-            .filter { it.parentId != null }
-            .groupBy { it.parentId!! }
-            .mapValues { (_, children) ->
-                children.sortedWith(compareBy({ it.sortOrder }, { it.id }))
-            }
-
-        val roots = todos
-            .filter { it.parentId == null || !lookup.containsKey(it.parentId) }
-            .sortedWith(compareBy({ it.sortOrder }, { it.id }))
-
-        val ordered = mutableListOf<Todo>()
-        val visited = mutableSetOf<String>()
-
-        fun appendPreOrder(todo: Todo) {
-            if (!visited.add(todo.id)) return
-            ordered.add(todo)
-            childrenByParent[todo.id]?.forEach { child ->
-                appendPreOrder(child)
-            }
-        }
-
-        roots.forEach { root -> appendPreOrder(root) }
-
-        // Add any orphaned todos not visited
-        todos.sortedWith(compareBy({ it.sortOrder }, { it.id }))
-            .filter { visited.add(it.id) }
-            .forEach { ordered.add(it) }
-
-        return ordered
-    }
+    private fun orderTodosForHierarchy(todos: List<Todo>): List<Todo> =
+        TodoHierarchyUtils.orderForHierarchy(todos)
 }

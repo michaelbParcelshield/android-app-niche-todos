@@ -257,6 +257,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAddDialog() {
+        showAddTodoDialog(titleResId = R.string.add_todo, parentId = null)
+    }
+
+    private fun showAddTodoDialog(titleResId: Int, parentId: String?) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_todo, null)
         val titleInput: TextInputEditText = dialogView.findViewById(R.id.input_title)
         val startButton: Button = dialogView.findViewById(R.id.button_start)
@@ -290,12 +294,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.add_todo)
+            .setTitle(titleResId)
             .setView(dialogView)
             .setPositiveButton(R.string.save) { _, _ ->
                 val normalizedTitle = TodoTitleValidator.normalizedTitleOrNull(titleInput.text)
                 if (normalizedTitle != null) {
-                    viewModel.addTodo(normalizedTitle, startDateTime, endDateTime)
+                    viewModel.addTodo(normalizedTitle, startDateTime, endDateTime, parentId)
                 }
             }
             .setNegativeButton(R.string.cancel, null)
@@ -362,56 +366,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAddSubtaskDialog(parentId: String) {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_todo, null)
-        val titleInput: TextInputEditText = dialogView.findViewById(R.id.input_title)
-        val startButton: Button = dialogView.findViewById(R.id.button_start)
-        val endButton: Button = dialogView.findViewById(R.id.button_end)
-        val startValue: TextView = dialogView.findViewById(R.id.text_start_value)
-        val endValue: TextView = dialogView.findViewById(R.id.text_end_value)
-
-        val (defaultStart, defaultEnd) = viewModel.defaultDateRange()
-
-        var startDateTime: LocalDateTime? = defaultStart
-        var endDateTime: LocalDateTime? = defaultEnd
-
-        startValue.text = formatDateTime(startDateTime)
-        endValue.text = formatDateTime(endDateTime)
-
-        setupStartButtonHandler(
-            startButton,
-            startValue,
-            endValue,
-            { startDateTime },
-            { endDateTime },
-            { startDateTime = it },
-            { endDateTime = it }
-        )
-
-        endButton.setOnClickListener {
-            showDateTimePicker(endDateTime ?: startDateTime, minDateTime = startDateTime) { selected ->
-                endDateTime = selected
-                endValue.text = formatDateTime(selected)
-            }
-        }
-
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.add_subtask)
-            .setView(dialogView)
-            .setPositiveButton(R.string.save) { _, _ ->
-                val normalizedTitle = TodoTitleValidator.normalizedTitleOrNull(titleInput.text)
-                if (normalizedTitle != null) {
-                    viewModel.addTodo(normalizedTitle, startDateTime, endDateTime, parentId)
-                }
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .create()
-
-        dialog.configureTitleInputBehavior(
-            titleInput = titleInput,
-            selectAllExistingText = false
-        )
-
-        dialog.show()
+        showAddTodoDialog(titleResId = R.string.add_subtask, parentId = parentId)
     }
 
     private fun AlertDialog.configureTitleInputBehavior(

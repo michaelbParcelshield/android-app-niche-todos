@@ -24,9 +24,12 @@ class TodoDragCallback(
     private var lastHighlightedPosition: Int = RecyclerView.NO_POSITION
 
     private companion object {
+        // Middle 50% of item height triggers nesting; outer 25% on each edge triggers reorder
         const val NEST_ZONE_START = 0.25f
         const val NEST_ZONE_END = 0.75f
+        // Distance from RecyclerView top/bottom edge to trigger unnesting to root level
         const val EDGE_THRESHOLD_DP = 50f
+        // Visual feedback for dragged item
         const val DRAGGING_ELEVATION = 8f
         const val DEFAULT_ELEVATION = 2f
         const val DRAGGING_ALPHA = 0.9f
@@ -213,64 +216,22 @@ class TodoDragCallback(
         lastHighlightedPosition = RecyclerView.NO_POSITION
     }
 
-    private fun wouldCreateCycle(dragged: Todo, target: Todo, allTodos: List<Todo>): Boolean {
-        val todoById = allTodos.associateBy { it.id }
-        var current: Todo? = target
-        while (current != null) {
-            if (current.id == dragged.id) {
-                return true
-            }
-            current = current.parentId?.let { todoById[it] }
-        }
-        return false
-    }
+    private fun wouldCreateCycle(dragged: Todo, target: Todo, allTodos: List<Todo>): Boolean =
+        TodoHierarchyUtils.wouldCreateCycle(dragged, target, allTodos)
 
-    private fun buildReorderItemsFromCurrentOrder(todos: List<Todo>): List<ReorderTodoItem> {
-        val sortOrderByParent = mutableMapOf<String?, Int>()
-        return todos.map { todo ->
-            val parentKey = todo.parentId
-            val sortOrder = sortOrderByParent.getOrDefault(parentKey, 0)
-            sortOrderByParent[parentKey] = sortOrder + 1
-            ReorderTodoItem(
-                id = todo.id,
-                parentId = todo.parentId,
-                sortOrder = sortOrder
-            )
-        }
-    }
+    private fun buildReorderItemsFromCurrentOrder(todos: List<Todo>): List<ReorderTodoItem> =
+        TodoHierarchyUtils.buildReorderItemsFromCurrentOrder(todos)
 
     private fun buildReorderItemsWithNesting(
         todos: List<Todo>,
         draggedId: String,
         newParentId: String
-    ): List<ReorderTodoItem> {
-        val sortOrderByParent = mutableMapOf<String?, Int>()
-        return todos.map { todo ->
-            val parentKey = if (todo.id == draggedId) newParentId else todo.parentId
-            val sortOrder = sortOrderByParent.getOrDefault(parentKey, 0)
-            sortOrderByParent[parentKey] = sortOrder + 1
-            ReorderTodoItem(
-                id = todo.id,
-                parentId = parentKey,
-                sortOrder = sortOrder
-            )
-        }
-    }
+    ): List<ReorderTodoItem> =
+        TodoHierarchyUtils.buildReorderItemsWithNesting(todos, draggedId, newParentId)
 
     private fun buildReorderItemsWithUnnesting(
         todos: List<Todo>,
         draggedId: String
-    ): List<ReorderTodoItem> {
-        val sortOrderByParent = mutableMapOf<String?, Int>()
-        return todos.map { todo ->
-            val parentKey = if (todo.id == draggedId) null else todo.parentId
-            val sortOrder = sortOrderByParent.getOrDefault(parentKey, 0)
-            sortOrderByParent[parentKey] = sortOrder + 1
-            ReorderTodoItem(
-                id = todo.id,
-                parentId = parentKey,
-                sortOrder = sortOrder
-            )
-        }
-    }
+    ): List<ReorderTodoItem> =
+        TodoHierarchyUtils.buildReorderItemsWithUnnesting(todos, draggedId)
 }

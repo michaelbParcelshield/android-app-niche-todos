@@ -31,30 +31,8 @@ class TodoAdapter(
         notifyDataSetChanged()
     }
 
-    private fun buildDepthMap(todoList: List<Todo>): Map<String, Int> {
-        val todoById = todoList.associateBy { it.id }
-        val depths = mutableMapOf<String, Int>()
-
-        fun computeDepth(todo: Todo): Int {
-            if (depths.containsKey(todo.id)) {
-                return depths[todo.id]!!
-            }
-            val parentId = todo.parentId
-            val depth = if (parentId == null) {
-                0
-            } else {
-                val parent = todoById[parentId]
-                if (parent != null) computeDepth(parent) + 1 else 0
-            }
-            depths[todo.id] = depth
-            return depth
-        }
-
-        for (todo in todoList) {
-            computeDepth(todo)
-        }
-        return depths
-    }
+    private fun buildDepthMap(todoList: List<Todo>): Map<String, Int> =
+        TodoHierarchyUtils.buildDepthMap(todoList)
 
     fun getItem(position: Int): Todo = todos[position]
 
