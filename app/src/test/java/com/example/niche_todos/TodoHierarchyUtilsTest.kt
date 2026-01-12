@@ -372,6 +372,73 @@ class TodoHierarchyUtilsTest {
         assertNull(draggedItem?.parentId)
     }
 
+    @Test
+    fun buildReorderItemsWithSiblingDrop_cycleDetected_preservesCurrentParent() {
+        val todos = listOf(
+            makeTodo("sibling-a", parentId = "child"),
+            makeTodo("parent"),
+            makeTodo("sibling-b", parentId = "child"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.buildReorderItemsWithSiblingDrop(todos, "parent")
+
+        val draggedItem = result.find { it.id == "parent" }
+        assertNull(draggedItem?.parentId)
+    }
+
+    // ========== findSiblingDropTarget tests ==========
+
+    @Test
+    fun findSiblingDropTarget_atStart_returnsNull() {
+        val todos = listOf(
+            makeTodo("dragged"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.findSiblingDropTarget(todos, "dragged")
+
+        assertNull(result)
+    }
+
+    @Test
+    fun findSiblingDropTarget_atEnd_returnsNull() {
+        val todos = listOf(
+            makeTodo("child", parentId = "parent"),
+            makeTodo("dragged")
+        )
+
+        val result = TodoHierarchyUtils.findSiblingDropTarget(todos, "dragged")
+
+        assertNull(result)
+    }
+
+    @Test
+    fun findSiblingDropTarget_mismatchedParents_returnsNull() {
+        val todos = listOf(
+            makeTodo("left", parentId = "parent-a"),
+            makeTodo("dragged"),
+            makeTodo("right", parentId = "parent-b")
+        )
+
+        val result = TodoHierarchyUtils.findSiblingDropTarget(todos, "dragged")
+
+        assertNull(result)
+    }
+
+    @Test
+    fun findSiblingDropTarget_betweenSiblings_returnsSharedParent() {
+        val todos = listOf(
+            makeTodo("left", parentId = "parent"),
+            makeTodo("dragged"),
+            makeTodo("right", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.findSiblingDropTarget(todos, "dragged")
+
+        assertEquals("parent", result?.parentId)
+    }
+
     // ========== buildReorderItemsWithNesting tests ==========
 
     @Test

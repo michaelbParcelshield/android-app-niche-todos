@@ -199,18 +199,20 @@ class TodoDragCallback(
 
                 if (shouldReparent && siblingDropTarget?.parentId != null) {
                     val targetParent = todos.find { it.id == siblingDropTarget.parentId }
-                    if (targetParent != null && wouldCreateCycle(draggedTodo, targetParent, todos)) {
+                    if (targetParent == null) {
                         onInvalidDrop()
+                        val items = buildReorderItemsFromCurrentOrder(todos)
+                        onDragComplete(items)
+                    } else if (wouldCreateCycle(draggedTodo, targetParent, todos)) {
+                        onInvalidDrop()
+                        val items = buildReorderItemsFromCurrentOrder(todos)
+                        onDragComplete(items)
                     } else {
-                        val items = buildReorderItemsWithNesting(
-                            todos,
-                            draggedTodo.id,
-                            siblingDropTarget.parentId
-                        )
+                        val items = buildReorderItemsWithSiblingDrop(todos, draggedTodo.id)
                         onDragComplete(items)
                     }
                 } else if (shouldReparent) {
-                    val items = buildReorderItemsWithUnnesting(todos, draggedTodo.id)
+                    val items = buildReorderItemsWithSiblingDrop(todos, draggedTodo.id)
                     onDragComplete(items)
                 } else {
                     val items = buildReorderItemsFromCurrentOrder(todos)
@@ -248,6 +250,12 @@ class TodoDragCallback(
         draggedId: String
     ): TodoHierarchyUtils.SiblingDropTarget? =
         TodoHierarchyUtils.findSiblingDropTarget(todos, draggedId)
+
+    private fun buildReorderItemsWithSiblingDrop(
+        todos: List<Todo>,
+        draggedId: String
+    ): List<ReorderTodoItem> =
+        TodoHierarchyUtils.buildReorderItemsWithSiblingDrop(todos, draggedId)
 
     private fun buildReorderItemsWithNesting(
         todos: List<Todo>,

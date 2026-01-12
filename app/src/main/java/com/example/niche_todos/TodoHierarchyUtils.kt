@@ -128,6 +128,8 @@ object TodoHierarchyUtils {
 
     /**
      * Finds the shared parent when a dragged todo sits between two siblings.
+     * The input list must reflect the visual order after the drag completes.
+     * Returns null when the dragged todo is at the start/end or between different parents.
      */
     fun findSiblingDropTarget(todos: List<Todo>, draggedId: String): SiblingDropTarget? {
         val index = todos.indexOfFirst { it.id == draggedId }
@@ -157,10 +159,21 @@ object TodoHierarchyUtils {
 
         return if (siblingDropTarget.parentId == draggedTodo.parentId) {
             buildReorderItemsFromCurrentOrder(todos)
-        } else if (siblingDropTarget.parentId == null) {
-            buildReorderItemsWithUnnesting(todos, draggedId)
         } else {
-            buildReorderItemsWithNesting(todos, draggedId, siblingDropTarget.parentId)
+            val targetParentId = siblingDropTarget.parentId
+            val targetParent = targetParentId?.let { parentId ->
+                todos.find { it.id == parentId }
+            }
+
+            if (targetParentId != null && targetParent == null) {
+                buildReorderItemsFromCurrentOrder(todos)
+            } else if (targetParent != null && wouldCreateCycle(draggedTodo, targetParent, todos)) {
+                buildReorderItemsFromCurrentOrder(todos)
+            } else if (targetParentId == null) {
+                buildReorderItemsWithUnnesting(todos, draggedId)
+            } else {
+                buildReorderItemsWithNesting(todos, draggedId, targetParentId)
+            }
         }
     }
 
