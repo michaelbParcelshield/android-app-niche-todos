@@ -9,8 +9,9 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.text.format.DateFormat
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
-import android.widget.Button
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.VisibleForTesting
 import androidx.appcompat.app.AlertDialog
@@ -18,6 +19,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
+import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import com.example.niche_todos.databinding.ActivityMainBinding
@@ -41,11 +43,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var emptyStateText: TextView
     private var hasChildrenIds: Set<String> = emptySet()
     private var collapsedTodoIds: Set<String> = emptySet()
-    private lateinit var healthCheckButton: Button
     private lateinit var healthStatusText: TextView
-    private lateinit var googleSignInButton: Button
     private lateinit var authStatusText: TextView
     private lateinit var backendEndpointSwitch: SwitchCompat
+    private var healthCheckMenuItem: MenuItem? = null
+    private var googleSignInMenuItem: MenuItem? = null
+    private var backendEndpointMenuItem: MenuItem? = null
     private lateinit var backendEndpointSelector: BackendEndpointSelector
     private lateinit var googleSignInFacade: GoogleSignInFacade
     private val googleSignInResultHandler = GoogleSignInResultHandler()
@@ -77,9 +80,7 @@ class MainActivity : AppCompatActivity() {
 
         recyclerView = findViewById(R.id.recycler_todos)
         emptyStateText = findViewById(R.id.text_empty_state)
-        healthCheckButton = findViewById(R.id.button_health_check)
         healthStatusText = findViewById(R.id.text_health_status)
-        googleSignInButton = findViewById(R.id.button_google_sign_in)
         authStatusText = findViewById(R.id.text_auth_status)
         backendEndpointSwitch = findViewById(R.id.switch_backend_endpoint)
         googleSignInFacade = MainActivityDependencies.googleSignInFacadeFactory(
@@ -134,16 +135,49 @@ class MainActivity : AppCompatActivity() {
             showAddDialog()
         }
 
-        healthCheckButton.setOnClickListener {
-            backendStatusViewModel.runHealthCheck()
-        }
-
-        googleSignInButton.setOnClickListener {
-            startGoogleSignIn()
-        }
-
         configureBackendEndpointSwitch()
         viewModel.refreshTodos()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        healthCheckMenuItem = menu.findItem(R.id.action_health_check)
+        googleSignInMenuItem = menu.findItem(R.id.action_google_sign_in)
+        backendEndpointMenuItem = menu.findItem(R.id.action_toggle_backend_endpoint)
+        backendStatusViewModel.healthStatus.value
+            ?.let { renderHealthStatusMenuItemEnabledState(it) }
+        backendStatusViewModel.authStatus.value
+            ?.let { renderAuthStatusMenuItemEnabledState(it) }
+        configureBackendEndpointMenuItem()
+        return true
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        configureBackendEndpointMenuItem()
+        return super.onPrepareOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.action_health_check -> {
+                backendStatusViewModel.runHealthCheck()
+                return true
+            }
+
+            R.id.action_google_sign_in -> {
+                startGoogleSignIn()
+                return true
+            }
+
+            R.id.action_toggle_backend_endpoint -> {
+                val nextState = !item.isChecked
+                backendEndpointSelector.setUseCloud(nextState)
+                item.isChecked = nextState
+                recreate()
+                return true
+            }
+        }
+        return super.onOptionsItemSelected(item)
     }
 
     private fun formatDateTime(dateTime: LocalDateTime?): String {
@@ -490,6 +524,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderHealthStatus(status: HealthStatus) {
+        renderHealthStatusMenuItemEnabledState(status)
         healthStatusText.text = when (status) {
             HealthStatus.Idle -> getString(R.string.health_check_initial)
             HealthStatus.InProgress -> getString(R.string.health_check_in_progress)
@@ -506,7 +541,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderAuthStatus(status: AuthStatus) {
-        googleSignInButton.isEnabled = status !is AuthStatus.Authenticating
+        renderAuthStatusMenuItemEnabledState(status)
         authStatusText.text = when (status) {
             AuthStatus.SignedOut -> getString(R.string.auth_status_initial)
             AuthStatus.SigningIn -> getString(R.string.auth_status_signing_in)
@@ -522,6 +557,29 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun configureBackendEndpointMenuItem() {
+        val endpointItem = backendEndpointMenuItem ?: return
+        if (!isDebugBuild()) {
+            endpointItem.isVisible = false
+            return
+        }
+        endpointItem.isVisible = true
+        endpointItem.isChecked = backendEndpointSelector.useCloud()
+    }
+
+    private fun renderHealthStatusMenuItemEnabledState(status: HealthStatus) {
+        healthCheckMenuItem?.isEnabled = status !is HealthStatus.InProgress
+    }
+
+    private fun renderAuthStatusMenuItemEnabledState(status: AuthStatus) {
+        googleSignInMenuItem?.isEnabled = status !is AuthStatus.Authenticating
+    }
+
+    @VisibleForTesting
+    internal fun isSignInMenuItemEnabled(): Boolean {
+        return googleSignInMenuItem?.isEnabled ?: true
     }
 
     @VisibleForTesting
