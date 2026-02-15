@@ -126,6 +126,10 @@ class TodoViewModel(
         val currentList = _todos.value ?: return
         val todo = currentList.firstOrNull { it.id == id } ?: return
         val updatedCompleted = !todo.isCompleted
+        // Optimistically update UI; if backend rejects, revert and surface error.
+        val optimistic = todo.copy(isCompleted = updatedCompleted)
+        _todos.value = currentList.map { item -> if (item.id == id) optimistic else item }
+        _syncError.value = null
         viewModelScope.launch {
             when (val result = todoRepository.updateTodo(
                 id = todo.id,
@@ -134,12 +138,11 @@ class TodoViewModel(
                 endDateTime = todo.endDateTime,
                 isCompleted = updatedCompleted
             )) {
-                is TodoSyncResult.Success -> {
-                    _syncError.value = null
-                    updateTodos(result.todos)
-                }
+                is TodoSyncResult.Success -> updateTodos(result.todos)
                 is TodoSyncResult.Failure -> {
                     _syncError.value = "Update failed: ${syncFailureMessage(result)}"
+                    val latest = _todos.value ?: emptyList()
+                    _todos.value = latest.map { item -> if (item.id == id) todo else item }
                 }
             }
         }
