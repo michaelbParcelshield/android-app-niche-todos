@@ -6,13 +6,14 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.util.TypedValue
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.ImageButton
-import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
@@ -107,10 +108,7 @@ class TodoAdapter(
         private val startDateView: TextView = itemView.findViewById(R.id.text_start_date)
         private val endDateView: TextView = itemView.findViewById(R.id.text_end_date)
         private val collapseButton: ImageButton = itemView.findViewById(R.id.button_toggle_collapse)
-        private val actionButtons: LinearLayout = itemView.findViewById(R.id.action_buttons)
-        private val editButton: ImageButton = itemView.findViewById(R.id.button_edit)
-        private val deleteButton: ImageButton = itemView.findViewById(R.id.button_delete)
-        private val addSubtaskButton: ImageButton = itemView.findViewById(R.id.button_add_subtask)
+        private val moreButton: ImageButton = itemView.findViewById(R.id.button_more)
         private val dateTimeFormatter = TodoDateTimeFormatter()
         private val baseContentPaddingLeftPx = contentLayout.paddingLeft
         private val baseContentPaddingTopPx = contentLayout.paddingTop
@@ -151,14 +149,8 @@ class TodoAdapter(
                 com.google.android.material.R.attr.colorSecondaryContainer,
                 Color.parseColor("#EDF2FF")
             )
-            val highlightStrokeColor = resolveThemeColor(
-                com.google.android.material.R.attr.colorPrimary,
-                ContextCompat.getColor(itemView.context, R.color.black)
-            )
             if (isHighlighted) {
                 cardView.setCardBackgroundColor(highlightBackgroundColor)
-                cardView.strokeColor = highlightStrokeColor
-                cardView.strokeWidth = 2
             } else {
                 cardView.setCardBackgroundColor(normalBackgroundColor)
                 cardView.strokeColor = normalStrokeColor
@@ -172,7 +164,8 @@ class TodoAdapter(
 
             val hasChildren = hasChildrenIds.contains(todo.id)
             if (!hasChildren) {
-                collapseButton.visibility = View.GONE
+                // Keep left alignment stable; rows without children still reserve space for the caret.
+                collapseButton.visibility = View.INVISIBLE
                 collapseButton.setOnClickListener(null)
             } else {
                 val isCollapsed = collapsedIds.contains(todo.id)
@@ -206,21 +199,24 @@ class TodoAdapter(
             val completionStatus = if (todo.isCompleted) "completed" else "not completed"
             textView.contentDescription = "${todo.title}, $completionStatus"
 
-            checkBox.setOnClickListener {
-                onToggleComplete(todo.id)
-            }
+            checkBox.setOnClickListener { onToggleComplete(todo.id) }
+            moreButton.setOnClickListener { showRowMenu(todo) }
+            itemView.setOnClickListener { onToggleComplete(todo.id) }
+        }
 
-            editButton.setOnClickListener {
-                onEdit(todo)
+        private fun showRowMenu(todo: Todo) {
+            val popup = PopupMenu(itemView.context, moreButton, Gravity.END)
+            popup.menuInflater.inflate(R.menu.menu_todo_item, popup.menu)
+            popup.setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    R.id.action_add_subtask -> onAddSubtask(todo.id)
+                    R.id.action_edit -> onEdit(todo)
+                    R.id.action_delete -> onDelete(todo.id)
+                    else -> return@setOnMenuItemClickListener false
+                }
+                true
             }
-
-            deleteButton.setOnClickListener {
-                onDelete(todo.id)
-            }
-
-            addSubtaskButton.setOnClickListener {
-                onAddSubtask(todo.id)
-            }
+            popup.show()
         }
 
         private fun applyNestingVisualStyle(isNested: Boolean, depth: Int) {
@@ -239,10 +235,10 @@ class TodoAdapter(
                 cardView.strokeWidth = baseCardStrokeWidth
                 cardView.useCompatPadding = baseUseCompatPadding
                 nestingBar.visibility = View.GONE
-                nestedDivider.visibility = View.GONE
+                nestedDivider.visibility = View.VISIBLE
 
                 // Restore the full "tile" layout for top-level items.
-                actionButtons.visibility = View.VISIBLE
+                moreButton.visibility = View.VISIBLE
                 startDateView.visibility = View.VISIBLE
                 textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
                 textView.setTypeface(textView.typeface, Typeface.BOLD)
@@ -270,7 +266,7 @@ class TodoAdapter(
             nestingBar.visibility = View.VISIBLE
             nestedDivider.visibility = View.VISIBLE
 
-            actionButtons.visibility = View.GONE
+            moreButton.visibility = View.GONE
             startDateView.visibility = View.GONE
             textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             textView.setTypeface(textView.typeface, Typeface.NORMAL)
@@ -293,7 +289,7 @@ class TodoAdapter(
     }
 
     private companion object {
-        const val NESTED_INDENT_BASE_DP = 16
-        const val NESTED_INDENT_PER_LEVEL_DP = 14
+        const val NESTED_INDENT_BASE_DP = 14
+        const val NESTED_INDENT_PER_LEVEL_DP = 16
     }
 }
