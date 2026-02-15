@@ -41,6 +41,7 @@
     <string name="voice_driven_unavailable">Voice recognition is not available on this device</string>
     <string name="voice_driven_sim_check">Simulate "check"</string>
     <string name="voice_driven_sim_skip">Simulate "skip"</string>
+    <string name="voice_driven_heard_prefix">Heard: %1$s</string>
 
     <!-- Accessibility content descriptions -->
     <string name="content_desc_add_todo">Add new todo</string>

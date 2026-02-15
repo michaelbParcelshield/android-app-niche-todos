@@ -24,7 +24,8 @@ class VoiceDrivenModeController(
     private val permissionDeniedTextProvider: () -> String,
     private val getVisibleTodos: () -> List<Todo>,
     private val toggleComplete: (String) -> Unit,
-    private val onUserMessage: (String) -> Unit
+    private val onUserMessage: (String) -> Unit,
+    private val onTranscript: (String, Boolean) -> Unit
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var tts: TextToSpeech? = null
@@ -102,6 +103,7 @@ class VoiceDrivenModeController(
 
     fun debugSimulatePhrase(phrase: String) {
         if (!running) return
+        onTranscript(phrase, true)
         handleRecognizedPhrases(listOf(phrase))
     }
 
@@ -172,8 +174,18 @@ class VoiceDrivenModeController(
                     consecutiveErrors += 1
                     Log.d(TAG, "onError=$error consecutiveErrors=$consecutiveErrors")
                     phase = Phase.Idle
-                    // Reprompt by re-speaking the current item.
-                    currentTodoId?.let { _ -> speakCurrentTodoAgain() } ?: advance()
+                    when (error) {
+                        SpeechRecognizer.ERROR_SPEECH_TIMEOUT,
+                        SpeechRecognizer.ERROR_NO_MATCH -> {
+                            // Don't reprompt; just keep listening. This allows long pauses and reduces repetition.
+                            mainHandler.postDelayed({ startListening() }, 250L)
+                        }
+
+                        else -> {
+                            // For other errors, restart listening without speaking again.
+                            mainHandler.postDelayed({ startListening() }, 500L)
+                        }
+                    }
                 }
 
                 override fun onResults(results: Bundle?) {
@@ -182,20 +194,48 @@ class VoiceDrivenModeController(
                     val phrases = results
                         ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         .orEmpty()
-                    handleRecognizedPhrases(phrases)
+                    val confidences = results
+                        ?.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)
+                        ?.toList()
+                        .orEmpty()
+                    handleRecognizedPhrases(phrases, confidences)
                 }
 
-                override fun onPartialResults(partialResults: Bundle?) {}
+                override fun onPartialResults(partialResults: Bundle?) {
+                    if (!running) return
+                    val phrases = partialResults
+                        ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        .orEmpty()
+                    val best = phrases.firstOrNull()?.trim().orEmpty()
+                    if (best.isNotBlank()) {
+                        onTranscript(best, false)
+                    }
+                }
                 override fun onEvent(eventType: Int, params: Bundle?) {}
             })
         }
     }
 
-    private fun handleRecognizedPhrases(phrases: List<String>) {
-        val normalized = phrases.joinToString(" ").lowercase(Locale.US)
-        Log.d(TAG, "recognized: $normalized")
-        when {
-            normalized.contains("check") -> {
+    private fun handleRecognizedPhrases(phrases: List<String>, confidences: List<Float> = emptyList()) {
+        val best = phrases.firstOrNull()?.trim().orEmpty()
+        if (best.isBlank()) {
+            mainHandler.postDelayed({ startListening() }, 250L)
+            return
+        }
+
+        val confidence = confidences.firstOrNull() ?: -1f
+        onTranscript(best, true)
+        Log.d(TAG, "recognized: $best confidence=$confidence")
+
+        val command = parseCommand(best, confidence)
+        if (command == null) {
+            // Not a command; ignore and keep listening without repeating prompt.
+            mainHandler.postDelayed({ startListening() }, 250L)
+            return
+        }
+
+        when (command) {
+            Command.Check -> {
                 val todoId = currentTodoId
                 if (todoId != null) {
                     pendingCheckedIds.add(todoId)
@@ -207,16 +247,11 @@ class VoiceDrivenModeController(
                 advance()
             }
 
-            normalized.contains("skip") -> {
+            Command.Skip -> {
                 lastTodoId = currentTodoId ?: lastTodoId
                 currentTodoId = null
                 phase = Phase.Idle
                 advance()
-            }
-
-            else -> {
-                phase = Phase.Idle
-                speakCurrentTodoAgain()
             }
         }
     }
@@ -236,11 +271,12 @@ class VoiceDrivenModeController(
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.US.toLanguageTag())
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1200L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 900L)
+            // Give the user time; keep recognition sessions open longer before concluding.
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 8000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 6000L)
         }
         speechRecognizer?.cancel()
         try {
@@ -304,5 +340,39 @@ class VoiceDrivenModeController(
         private const val TAG = "VoiceMode"
         private const val UTTERANCE_ITEM = "voice_item"
         private const val UTTERANCE_COMPLETED = "voice_completed"
+    }
+
+    private enum class Command {
+        Check,
+        Skip
+    }
+
+    private fun parseCommand(raw: String, confidence: Float): Command? {
+        // If confidence is present, require a minimum to reduce accidental triggers.
+        if (confidence in 0f..0.45f) {
+            return null
+        }
+        val tokens = raw.lowercase(Locale.US)
+            .split(Regex("\\s+"))
+            .map { it.replace(Regex("[^a-z]"), "") }
+            .filter { it.isNotBlank() }
+        if (tokens.isEmpty()) return null
+
+        // Only accept short, command-like utterances.
+        val allowedExtra = setOf("it", "please", "pls", "ok", "okay")
+        val isShort = tokens.size <= 3
+
+        fun matches(cmd: String): Boolean {
+            if (!tokens.contains(cmd)) return false
+            if (!isShort) return false
+            val unknown = tokens.filter { it != cmd && it !in allowedExtra }
+            return unknown.isEmpty()
+        }
+
+        return when {
+            matches("check") -> Command.Check
+            matches("skip") -> Command.Skip
+            else -> null
+        }
     }
 }

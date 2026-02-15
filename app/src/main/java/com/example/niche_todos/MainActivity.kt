@@ -49,6 +49,7 @@ class MainActivity : AppCompatActivity() {
     private var collapsedTodoIds: Set<String> = emptySet()
     private lateinit var healthStatusText: TextView
     private lateinit var authStatusText: TextView
+    private lateinit var voiceHeardText: TextView
     private lateinit var backendEndpointSwitch: SwitchCompat
     private var healthCheckMenuItem: MenuItem? = null
     private var googleSignInMenuItem: MenuItem? = null
@@ -102,6 +103,7 @@ class MainActivity : AppCompatActivity() {
         emptyStateText = findViewById(R.id.text_empty_state)
         healthStatusText = findViewById(R.id.text_health_status)
         authStatusText = findViewById(R.id.text_auth_status)
+        voiceHeardText = findViewById(R.id.text_voice_heard)
         backendEndpointSwitch = findViewById(R.id.switch_backend_endpoint)
         googleSignInFacade = MainActivityDependencies.googleSignInFacadeFactory(
             this,
@@ -116,6 +118,13 @@ class MainActivity : AppCompatActivity() {
             toggleComplete = { id -> viewModel.toggleComplete(id) },
             onUserMessage = { message ->
                 Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+            },
+            onTranscript = { text, isFinal ->
+                val prefixText = getString(R.string.voice_driven_heard_prefix, text)
+                voiceHeardText.text = prefixText
+                // Keep it visible while voice mode is enabled; partial results still show.
+                voiceHeardText.visibility = if (voiceDrivenModeEnabled) View.VISIBLE else View.GONE
+                voiceHeardText.alpha = if (isFinal) 0.9f else 0.7f
             }
         )
 
@@ -243,6 +252,8 @@ class MainActivity : AppCompatActivity() {
             Log.d("VoiceMode", "disabled via menu")
             voiceDrivenModeEnabled = false
             voiceDrivenModeController.stop()
+            voiceHeardText.visibility = View.GONE
+            voiceHeardText.text = ""
             invalidateOptionsMenu()
             return
         }
@@ -264,6 +275,7 @@ class MainActivity : AppCompatActivity() {
         }
         Log.d("VoiceMode", "enabled via menu")
         voiceDrivenModeEnabled = true
+        voiceHeardText.visibility = View.VISIBLE
         invalidateOptionsMenu()
     }
 
