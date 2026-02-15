@@ -39,6 +39,8 @@
     <string name="voice_driven_prompt_check_or_skip">Say "check" or "skip"</string>
     <string name="voice_driven_permission_denied">Microphone permission is required for voice-driven mode</string>
     <string name="voice_driven_unavailable">Voice recognition is not available on this device</string>
+    <string name="voice_driven_sim_check">Simulate "check"</string>
+    <string name="voice_driven_sim_skip">Simulate "skip"</string>
 
     <!-- Accessibility content descriptions -->
     <string name="content_desc_add_todo">Add new todo</string>

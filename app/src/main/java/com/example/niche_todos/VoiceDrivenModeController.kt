@@ -89,6 +89,11 @@ class VoiceDrivenModeController(
         }
     }
 
+    fun debugSimulatePhrase(phrase: String) {
+        if (!running) return
+        handleRecognizedPhrases(listOf(phrase))
+    }
+
     private fun ensureTts() {
         if (tts != null) return
         tts = TextToSpeech(context.applicationContext) { status ->

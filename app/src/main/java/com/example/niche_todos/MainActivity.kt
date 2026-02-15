@@ -53,6 +53,8 @@ class MainActivity : AppCompatActivity() {
     private var healthCheckMenuItem: MenuItem? = null
     private var googleSignInMenuItem: MenuItem? = null
     private var voiceDrivenModeMenuItem: MenuItem? = null
+    private var voiceSimCheckMenuItem: MenuItem? = null
+    private var voiceSimSkipMenuItem: MenuItem? = null
     private var backendEndpointMenuItem: MenuItem? = null
     private lateinit var backendEndpointSelector: BackendEndpointSelector
     private lateinit var googleSignInFacade: GoogleSignInFacade
@@ -170,6 +172,8 @@ class MainActivity : AppCompatActivity() {
         healthCheckMenuItem = menu.findItem(R.id.action_health_check)
         googleSignInMenuItem = menu.findItem(R.id.action_google_sign_in)
         voiceDrivenModeMenuItem = menu.findItem(R.id.action_voice_driven_mode)
+        voiceSimCheckMenuItem = menu.findItem(R.id.action_voice_sim_check)
+        voiceSimSkipMenuItem = menu.findItem(R.id.action_voice_sim_skip)
         backendEndpointMenuItem = menu.findItem(R.id.action_toggle_backend_endpoint)
         backendStatusViewModel.healthStatus.value
             ?.let { renderHealthStatusMenuItemEnabledState(it) }
@@ -177,12 +181,18 @@ class MainActivity : AppCompatActivity() {
             ?.let { renderAuthStatusMenuItemEnabledState(it) }
         configureBackendEndpointMenuItem()
         voiceDrivenModeMenuItem?.isChecked = voiceDrivenModeEnabled
+        val showVoiceSim = isDebugBuild()
+        voiceSimCheckMenuItem?.isVisible = showVoiceSim
+        voiceSimSkipMenuItem?.isVisible = showVoiceSim
         return true
     }
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         configureBackendEndpointMenuItem()
         voiceDrivenModeMenuItem?.isChecked = voiceDrivenModeEnabled
+        val showVoiceSim = isDebugBuild()
+        voiceSimCheckMenuItem?.isVisible = showVoiceSim
+        voiceSimSkipMenuItem?.isVisible = showVoiceSim
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -200,6 +210,16 @@ class MainActivity : AppCompatActivity() {
 
             R.id.action_voice_driven_mode -> {
                 toggleVoiceDrivenModeFromMenu()
+                return true
+            }
+
+            R.id.action_voice_sim_check -> {
+                voiceDrivenModeController.debugSimulatePhrase("check")
+                return true
+            }
+
+            R.id.action_voice_sim_skip -> {
+                voiceDrivenModeController.debugSimulatePhrase("skip")
                 return true
             }
 
