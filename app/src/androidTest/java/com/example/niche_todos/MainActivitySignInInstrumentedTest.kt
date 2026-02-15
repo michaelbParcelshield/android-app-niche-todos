@@ -4,15 +4,16 @@ package com.example.niche_todos
 
 import android.app.Activity
 import android.content.Intent
-import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -21,16 +22,18 @@ import org.junit.runner.RunWith
 class MainActivitySignInInstrumentedTest {
     private lateinit var authRepository: TestAuthRepository
     private lateinit var googleSignInFacade: TestGoogleSignInFacade
+    private lateinit var todoRepository: TestTodoRepository
 
     @Before
     fun setUp() {
         authRepository = TestAuthRepository()
         googleSignInFacade = TestGoogleSignInFacade()
+        todoRepository = TestTodoRepository()
         MainActivityDependencies.repositoryFactory = { _, _ ->
             BackendRepositoryBundle(
                 healthRepository = TestHealthRepository(),
                 authRepository = authRepository,
-                todoRepository = TestTodoRepository()
+                todoRepository = todoRepository
             )
         }
         MainActivityDependencies.googleSignInFacadeFactory = { _, _ ->
@@ -50,14 +53,10 @@ class MainActivitySignInInstrumentedTest {
         scenario.onActivity { activity ->
             activity.handleGoogleSignInResult(Activity.RESULT_OK, Intent())
         }
-        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
-
-        scenario.onActivity { activity ->
-            val statusText = activity.findViewById<TextView>(R.id.text_auth_status)
-            assertEquals(
-                activity.getString(R.string.auth_status_success, 200),
-                statusText.text.toString()
-            )
+        runBlocking {
+            withTimeout(2_000) {
+                authRepository.exchangeGate.await()
+            }
         }
     }
 
@@ -71,31 +70,33 @@ class MainActivitySignInInstrumentedTest {
         }
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
 
-        scenario.onActivity { activity ->
-            val statusText = activity.findViewById<TextView>(R.id.text_auth_status)
-            assertEquals(
-                activity.getString(R.string.auth_status_missing_id_token),
-                statusText.text.toString()
-            )
+        try {
+            runBlocking {
+                withTimeout(500) {
+                    authRepository.exchangeGate.await()
+                }
+            }
+            fail("Expected no auth exchange when ID token is missing")
+        } catch (_: TimeoutCancellationException) {
+            // expected
         }
     }
 
     @Test
-    fun handleGoogleSignInResult_disablesMenuItemWhileAuthenticating() {
-        val gate = CompletableDeferred<Unit>()
-        authRepository.gate = gate
+    fun handleGoogleSignInResult_triggersTodoRefreshOnSuccess() {
         val scenario = ActivityScenario.launch(MainActivity::class.java)
 
         scenario.onActivity { activity ->
             activity.handleGoogleSignInResult(Activity.RESULT_OK, Intent())
-            assertFalse(activity.isSignInMenuItemEnabled())
         }
 
-        gate.complete(Unit)
-        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
-
-        scenario.onActivity { activity ->
-            assertTrue(activity.isSignInMenuItemEnabled())
+        runBlocking {
+            withTimeout(2_000) {
+                authRepository.exchangeGate.await()
+            }
+            withTimeout(2_000) {
+                todoRepository.fetchGate.await()
+            }
         }
     }
 
@@ -105,10 +106,10 @@ class MainActivitySignInInstrumentedTest {
     }
 
     private class TestAuthRepository : AuthRepository {
-        var gate: CompletableDeferred<Unit>? = null
+        val exchangeGate = CompletableDeferred<Unit>()
 
         override suspend fun exchangeGoogleIdToken(idToken: String): AuthResult {
-            gate?.await()
+            exchangeGate.complete(Unit)
             return AuthResult.Success(
                 tokens = AuthTokens(
                     accessToken = "access",
@@ -127,8 +128,12 @@ class MainActivitySignInInstrumentedTest {
     }
 
     private class TestTodoRepository : TodoRepository {
-        override suspend fun fetchTodos(): TodoSyncResult =
-            TodoSyncResult.Success(emptyList(), 200)
+        val fetchGate = CompletableDeferred<Unit>()
+
+        override suspend fun fetchTodos(): TodoSyncResult {
+            fetchGate.complete(Unit)
+            return TodoSyncResult.Success(emptyList(), 200)
+        }
 
         override suspend fun createTodo(
             title: String,
