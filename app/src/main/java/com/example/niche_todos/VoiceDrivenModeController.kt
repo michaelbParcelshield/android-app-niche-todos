@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.content.pm.PackageManager
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -24,6 +26,7 @@ class VoiceDrivenModeController(
     private val toggleComplete: (String) -> Unit,
     private val onUserMessage: (String) -> Unit
 ) {
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var tts: TextToSpeech? = null
     private var speechRecognizer: SpeechRecognizer? = null
     private var isTtsReady: Boolean = false
@@ -123,7 +126,8 @@ class VoiceDrivenModeController(
                     when (utteranceId) {
                         UTTERANCE_ITEM -> {
                             Log.d(TAG, "tts done (item), start listening")
-                            startListening()
+                            // SpeechRecognizer must be driven from the main thread.
+                            mainHandler.post { startListening() }
                         }
                         UTTERANCE_COMPLETED -> {
                             // Stay idle. If list changes, onVisibleTodosChanged() will advance again.
