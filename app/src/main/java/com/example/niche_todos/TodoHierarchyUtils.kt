@@ -4,6 +4,44 @@ package com.example.niche_todos
 
 object TodoHierarchyUtils {
 
+    fun visibleTodos(todos: List<Todo>, collapsedTodoIds: Set<String>): List<Todo> {
+        if (todos.isEmpty() || collapsedTodoIds.isEmpty()) {
+            return todos
+        }
+
+        val todoById = todos.associateBy { it.id }
+        return todos.filter { todo -> !isUnderCollapsedAncestor(todo.id, todoById, collapsedTodoIds) }
+    }
+
+    fun hasChildrenIds(todos: List<Todo>): Set<String> {
+        return todos.mapNotNull { it.parentId }.toSet()
+    }
+
+    private fun isUnderCollapsedAncestor(
+        todoId: String,
+        todoById: Map<String, Todo>,
+        collapsedTodoIds: Set<String>
+    ): Boolean {
+        var currentId: String? = todoId
+        val visiting = mutableSetOf<String>()
+
+        while (currentId != null) {
+            if (!visiting.add(currentId)) {
+                return false
+            }
+
+            val currentTodo = todoById[currentId] ?: return false
+            val parentId = currentTodo.parentId
+
+            if (parentId != null && collapsedTodoIds.contains(parentId)) {
+                return true
+            }
+            currentId = parentId
+        }
+
+        return false
+    }
+
     /**
      * Orders todos for hierarchical display using pre-order traversal.
      * Children appear directly after their parent, sorted by sortOrder.

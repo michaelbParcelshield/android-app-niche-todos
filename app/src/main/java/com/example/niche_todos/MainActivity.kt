@@ -39,6 +39,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var adapter: TodoAdapter
     private lateinit var recyclerView: RecyclerView
     private lateinit var emptyStateText: TextView
+    private var hasChildrenIds: Set<String> = emptySet()
+    private var collapsedTodoIds: Set<String> = emptySet()
     private lateinit var healthCheckButton: Button
     private lateinit var healthStatusText: TextView
     private lateinit var googleSignInButton: Button
@@ -89,15 +91,34 @@ class MainActivity : AppCompatActivity() {
             onToggleComplete = { id -> viewModel.toggleComplete(id) },
             onEdit = { todo -> showEditDialog(todo) },
             onDelete = { id -> viewModel.deleteTodo(id) },
-            onAddSubtask = { parentId -> showAddSubtaskDialog(parentId) }
+            onAddSubtask = { parentId -> showAddSubtaskDialog(parentId) },
+            onToggleCollapse = { todoId -> viewModel.toggleCollapsed(todoId) }
         )
 
         recyclerView.adapter = adapter
         attachDragToReorder()
 
-        viewModel.todos.observe(this) { todos ->
-            adapter.submitList(todos)
-            updateEmptyState(todos.isEmpty())
+        viewModel.visibleTodos.observe(this) { visibleTodos ->
+            adapter.submitList(visibleTodos, hasChildrenIds, collapsedTodoIds)
+            updateEmptyState(visibleTodos.isEmpty())
+        }
+
+        viewModel.hasChildrenIds.observe(this) { ids ->
+            hasChildrenIds = ids
+            adapter.submitList(
+                viewModel.visibleTodos.value.orEmpty(),
+                hasChildrenIds,
+                collapsedTodoIds
+            )
+        }
+
+        viewModel.collapsedTodoIds.observe(this) { ids ->
+            collapsedTodoIds = ids
+            adapter.submitList(
+                viewModel.visibleTodos.value.orEmpty(),
+                hasChildrenIds,
+                collapsedTodoIds
+            )
         }
         backendStatusViewModel.healthStatus.observe(this) { status ->
             renderHealthStatus(status)
@@ -388,7 +409,8 @@ class MainActivity : AppCompatActivity() {
         val dragCallback = TodoDragCallback(
             adapter = adapter,
             onDragComplete = { items -> viewModel.reorderTodos(items) },
-            onInvalidDrop = { showCircularReferenceError() }
+            onInvalidDrop = { showCircularReferenceError() },
+            canDrag = { collapsedTodoIds.isEmpty() }
         )
         ItemTouchHelper(dragCallback).attachToRecyclerView(recyclerView)
     }

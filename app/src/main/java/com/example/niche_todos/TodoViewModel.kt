@@ -4,6 +4,7 @@ package com.example.niche_todos
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import java.time.LocalDateTime
@@ -16,6 +17,21 @@ class TodoViewModel(
 
     private val _todos = MutableLiveData<List<Todo>>(emptyList())
     val todos: LiveData<List<Todo>> = _todos
+    private val _collapsedTodoIds = MutableLiveData<Set<String>>(emptySet())
+    val collapsedTodoIds: LiveData<Set<String>> = _collapsedTodoIds
+    val visibleTodos: LiveData<List<Todo>> = MediatorLiveData<List<Todo>>().apply {
+        addSource(_todos) { todos ->
+            val collapsedIds = _collapsedTodoIds.value ?: emptySet()
+            value = TodoHierarchyUtils.visibleTodos(todos, collapsedIds)
+        }
+        addSource(_collapsedTodoIds) { collapsedIds ->
+            val todos = _todos.value ?: emptyList()
+            value = TodoHierarchyUtils.visibleTodos(todos, collapsedIds)
+        }
+    }
+    val hasChildrenIds: LiveData<Set<String>> = MediatorLiveData<Set<String>>().apply {
+        addSource(_todos) { value = TodoHierarchyUtils.hasChildrenIds(it) }
+    }
 
     private fun currentDayBounds(): Pair<LocalDateTime, LocalDateTime> {
         val today = nowProvider().toLocalDate()
@@ -29,7 +45,7 @@ class TodoViewModel(
     fun refreshTodos() {
         viewModelScope.launch {
             when (val result = todoRepository.fetchTodos()) {
-                is TodoSyncResult.Success -> _todos.value = result.todos
+                is TodoSyncResult.Success -> updateTodos(result.todos)
                 is TodoSyncResult.Failure -> Unit
             }
         }
@@ -88,7 +104,7 @@ class TodoViewModel(
                 false,
                 parentId
             )) {
-                is TodoSyncResult.Success -> _todos.value = result.todos
+                is TodoSyncResult.Success -> updateTodos(result.todos)
                 is TodoSyncResult.Failure -> Unit
             }
         }
@@ -106,7 +122,7 @@ class TodoViewModel(
                 endDateTime = todo.endDateTime,
                 isCompleted = updatedCompleted
             )) {
-                is TodoSyncResult.Success -> _todos.value = result.todos
+                is TodoSyncResult.Success -> updateTodos(result.todos)
                 is TodoSyncResult.Failure -> Unit
             }
         }
@@ -135,7 +151,7 @@ class TodoViewModel(
                 endDateTime = resolvedEnd,
                 isCompleted = todo.isCompleted
             )) {
-                is TodoSyncResult.Success -> _todos.value = result.todos
+                is TodoSyncResult.Success -> updateTodos(result.todos)
                 is TodoSyncResult.Failure -> Unit
             }
         }
@@ -145,7 +161,7 @@ class TodoViewModel(
         _todos.value ?: return
         viewModelScope.launch {
             when (val result = todoRepository.deleteTodo(id)) {
-                is TodoSyncResult.Success -> _todos.value = result.todos
+                is TodoSyncResult.Success -> updateTodos(result.todos)
                 is TodoSyncResult.Failure -> Unit
             }
         }
@@ -163,7 +179,7 @@ class TodoViewModel(
         val mutableList = currentList.toMutableList()
         val todo = mutableList.removeAt(fromIndex)
         mutableList.add(toIndex, todo)
-        _todos.value = mutableList.toList()
+        updateTodos(mutableList.toList())
     }
 
     fun reorderTodos(items: List<ReorderTodoItem>) {
@@ -178,8 +194,29 @@ class TodoViewModel(
         }
         viewModelScope.launch {
             when (val result = todoRepository.reorderTodos(items)) {
-                is TodoSyncResult.Success -> _todos.value = result.todos
+                is TodoSyncResult.Success -> updateTodos(result.todos)
                 is TodoSyncResult.Failure -> Unit
+            }
+        }
+    }
+
+    fun toggleCollapsed(todoId: String) {
+        val currentCollapsed = _collapsedTodoIds.value ?: emptySet()
+        val newCollapsed = currentCollapsed.toMutableSet()
+        if (!newCollapsed.add(todoId)) {
+            newCollapsed.remove(todoId)
+        }
+        _collapsedTodoIds.value = newCollapsed
+    }
+
+    private fun updateTodos(newTodos: List<Todo>) {
+        _todos.value = newTodos
+        val existingIds = newTodos.map { it.id }.toSet()
+        val currentCollapsed = _collapsedTodoIds.value ?: emptySet()
+        if (currentCollapsed.isNotEmpty()) {
+            val prunedCollapsed = currentCollapsed.intersect(existingIds)
+            if (prunedCollapsed.size != currentCollapsed.size) {
+                _collapsedTodoIds.value = prunedCollapsed
             }
         }
     }
