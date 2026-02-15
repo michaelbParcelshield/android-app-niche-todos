@@ -143,7 +143,6 @@ class TodoAdapter(
             applyNestingVisualStyle(isNested, depth)
 
             // Apply highlight for nest target
-            val normalStrokeColor = resolveThemeColor(com.google.android.material.R.attr.colorOutline, Color.LTGRAY)
             val normalBackgroundColor = resolveThemeColor(com.google.android.material.R.attr.colorSurface, Color.WHITE)
             val highlightBackgroundColor = resolveThemeColor(
                 com.google.android.material.R.attr.colorSecondaryContainer,
@@ -153,8 +152,8 @@ class TodoAdapter(
                 cardView.setCardBackgroundColor(highlightBackgroundColor)
             } else {
                 cardView.setCardBackgroundColor(normalBackgroundColor)
-                cardView.strokeColor = normalStrokeColor
-                cardView.strokeWidth = if (isNested) 0 else 1
+                // No item outlines; list is separated by dividers instead.
+                cardView.strokeWidth = 0
             }
 
             val baseTextAlpha = if (isHighlighted) 0.98f else 1f
