@@ -239,6 +239,7 @@ class TodoAdapter(
 
                 // Restore the full "tile" layout for top-level items.
                 moreButton.visibility = View.VISIBLE
+                moreButton.alpha = 1f
                 startDateView.visibility = View.VISIBLE
                 textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
                 textView.setTypeface(textView.typeface, Typeface.BOLD)
@@ -266,7 +267,9 @@ class TodoAdapter(
             nestingBar.visibility = View.VISIBLE
             nestedDivider.visibility = View.VISIBLE
 
-            moreButton.visibility = View.GONE
+            // Keep actions available for nested items too (edit/delete/add-subtask), matching top-level behavior.
+            moreButton.visibility = View.VISIBLE
+            moreButton.alpha = 0.85f
             startDateView.visibility = View.GONE
             textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             textView.setTypeface(textView.typeface, Typeface.NORMAL)
