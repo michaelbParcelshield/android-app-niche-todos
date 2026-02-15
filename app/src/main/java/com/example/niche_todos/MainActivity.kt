@@ -162,6 +162,12 @@ class MainActivity : AppCompatActivity() {
                 collapsedTodoIds
             )
         }
+
+        viewModel.syncError.observe(this) { message ->
+            val value = message?.takeIf { it.isNotBlank() } ?: return@observe
+            Log.d("VoiceMode", "syncError: $value")
+            Toast.makeText(this, value, Toast.LENGTH_SHORT).show()
+        }
         backendStatusViewModel.healthStatus.observe(this) { status ->
             renderHealthStatus(status)
         }
