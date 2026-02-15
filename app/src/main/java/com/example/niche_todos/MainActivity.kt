@@ -111,8 +111,12 @@ class MainActivity : AppCompatActivity() {
             context = this,
             promptTextProvider = { getString(R.string.voice_driven_prompt_check_or_skip) },
             listCompletedTextProvider = { getString(R.string.voice_driven_list_completed) },
+            permissionDeniedTextProvider = { getString(R.string.voice_driven_permission_denied) },
             getVisibleTodos = { viewModel.visibleTodos.value.orEmpty() },
-            toggleComplete = { id -> viewModel.toggleComplete(id) }
+            toggleComplete = { id -> viewModel.toggleComplete(id) },
+            onUserMessage = { message ->
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+            }
         )
 
         adapter = TodoAdapter(

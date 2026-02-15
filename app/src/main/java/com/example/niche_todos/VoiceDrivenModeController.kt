@@ -2,9 +2,11 @@
 // ABOUTME: Uses TextToSpeech + SpeechRecognizer and only navigates top-level unchecked todos.
 package com.example.niche_todos
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.content.pm.PackageManager
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -17,8 +19,10 @@ class VoiceDrivenModeController(
     private val context: Context,
     private val promptTextProvider: () -> String,
     private val listCompletedTextProvider: () -> String,
+    private val permissionDeniedTextProvider: () -> String,
     private val getVisibleTodos: () -> List<Todo>,
-    private val toggleComplete: (String) -> Unit
+    private val toggleComplete: (String) -> Unit,
+    private val onUserMessage: (String) -> Unit
 ) {
     private var tts: TextToSpeech? = null
     private var speechRecognizer: SpeechRecognizer? = null
@@ -42,6 +46,10 @@ class VoiceDrivenModeController(
 
     fun start(): Boolean {
         if (running) return true
+        if (!hasRecordAudioPermission()) {
+            onUserMessage(permissionDeniedTextProvider())
+            return false
+        }
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
             return false
         }
@@ -212,6 +220,12 @@ class VoiceDrivenModeController(
     private fun startListening() {
         if (!running) return
         if (speechRecognizer == null) return
+        if (!hasRecordAudioPermission()) {
+            Log.d(TAG, "startListening: missing RECORD_AUDIO permission")
+            onUserMessage(permissionDeniedTextProvider())
+            stop()
+            return
+        }
         phase = Phase.Listening
         Log.d(TAG, "startListening")
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -225,7 +239,17 @@ class VoiceDrivenModeController(
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 900L)
         }
         speechRecognizer?.cancel()
-        speechRecognizer?.startListening(intent)
+        try {
+            speechRecognizer?.startListening(intent)
+        } catch (e: SecurityException) {
+            Log.d(TAG, "startListening: SecurityException", e)
+            onUserMessage(permissionDeniedTextProvider())
+            stop()
+        }
+    }
+
+    private fun hasRecordAudioPermission(): Boolean {
+        return context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun advance() {
