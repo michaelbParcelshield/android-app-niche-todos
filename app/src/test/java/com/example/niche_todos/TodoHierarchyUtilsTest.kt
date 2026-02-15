@@ -341,6 +341,104 @@ class TodoHierarchyUtilsTest {
         assertEquals(1, result[3].sortOrder)
     }
 
+    // ========== buildReorderItemsWithSiblingDrop tests ==========
+
+    @Test
+    fun buildReorderItemsWithSiblingDrop_betweenSiblings_reparentsDraggedTodo() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("child-a", parentId = "parent"),
+            makeTodo("dragged"),
+            makeTodo("child-b", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.buildReorderItemsWithSiblingDrop(todos, "dragged")
+
+        val draggedItem = result.find { it.id == "dragged" }
+        assertEquals("parent", draggedItem?.parentId)
+    }
+
+    @Test
+    fun buildReorderItemsWithSiblingDrop_betweenRootSiblings_unnestsDraggedTodo() {
+        val todos = listOf(
+            makeTodo("root-a"),
+            makeTodo("dragged", parentId = "root-b"),
+            makeTodo("root-b")
+        )
+
+        val result = TodoHierarchyUtils.buildReorderItemsWithSiblingDrop(todos, "dragged")
+
+        val draggedItem = result.find { it.id == "dragged" }
+        assertNull(draggedItem?.parentId)
+    }
+
+    @Test
+    fun buildReorderItemsWithSiblingDrop_cycleDetected_preservesCurrentParent() {
+        val todos = listOf(
+            makeTodo("sibling-a", parentId = "child"),
+            makeTodo("parent"),
+            makeTodo("sibling-b", parentId = "child"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.buildReorderItemsWithSiblingDrop(todos, "parent")
+
+        val draggedItem = result.find { it.id == "parent" }
+        assertNull(draggedItem?.parentId)
+    }
+
+    // ========== findSiblingDropTarget tests ==========
+
+    @Test
+    fun findSiblingDropTarget_atStart_returnsNull() {
+        val todos = listOf(
+            makeTodo("dragged"),
+            makeTodo("child", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.findSiblingDropTarget(todos, "dragged")
+
+        assertNull(result)
+    }
+
+    @Test
+    fun findSiblingDropTarget_atEnd_returnsNull() {
+        val todos = listOf(
+            makeTodo("child", parentId = "parent"),
+            makeTodo("dragged")
+        )
+
+        val result = TodoHierarchyUtils.findSiblingDropTarget(todos, "dragged")
+
+        assertNull(result)
+    }
+
+    @Test
+    fun findSiblingDropTarget_mismatchedParents_returnsNull() {
+        val todos = listOf(
+            makeTodo("left", parentId = "parent-a"),
+            makeTodo("dragged"),
+            makeTodo("right", parentId = "parent-b")
+        )
+
+        val result = TodoHierarchyUtils.findSiblingDropTarget(todos, "dragged")
+
+        assertNull(result)
+    }
+
+    @Test
+    fun findSiblingDropTarget_betweenSiblings_returnsSharedParent() {
+        val todos = listOf(
+            makeTodo("left", parentId = "parent"),
+            makeTodo("dragged"),
+            makeTodo("right", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.findSiblingDropTarget(todos, "dragged")
+
+        assertEquals("parent", result?.parentId)
+    }
+
     // ========== buildReorderItemsWithNesting tests ==========
 
     @Test
