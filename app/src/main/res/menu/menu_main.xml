@@ -4,16 +4,9 @@
     tools:context="com.example.niche_todos.MainActivity">
 
     <item
-        android:id="@+id/action_settings"
-        android:orderInCategory="100"
-        android:title="@string/action_settings"
-        app:showAsAction="never">
-        <menu>
-            <item
-                android:id="@+id/action_voice_driven_mode"
-                android:checkable="true"
-                android:title="@string/voice_driven_mode_label"
-                app:showAsAction="never" />
-        </menu>
-    </item>
+        android:id="@+id/action_voice_play_stop"
+        android:icon="@drawable/ic_play"
+        android:title="@string/voice_driven_play_label"
+        app:iconTint="@color/toolbar_action_tint"
+        app:showAsAction="always" />
 </menu>

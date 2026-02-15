@@ -1,5 +1,5 @@
 // ABOUTME: Unit tests for voice-driven mode command parsing.
-// ABOUTME: Ensures we only accept short "check/skip" phrases and ignore unrelated speech.
+// ABOUTME: Ensures we only accept short "check/skip/repeat" phrases and ignore unrelated speech.
 package com.example.niche_todos
 
 import org.junit.Assert.assertFalse
@@ -9,9 +9,10 @@ import org.junit.Test
 class VoiceDrivenModeCommandParserTest {
 
     @Test
-    fun acceptsCheckAndSkipAlone() {
+    fun acceptsCommandsAlone() {
         assertTrue(VoiceDrivenModeControllerCommandParser.isCommand("check", 0.9f))
         assertTrue(VoiceDrivenModeControllerCommandParser.isCommand("skip", 0.9f))
+        assertTrue(VoiceDrivenModeControllerCommandParser.isCommand("repeat", 0.9f))
     }
 
     @Test
@@ -19,6 +20,7 @@ class VoiceDrivenModeCommandParserTest {
         assertTrue(VoiceDrivenModeControllerCommandParser.isCommand("check please", 0.9f))
         assertTrue(VoiceDrivenModeControllerCommandParser.isCommand("skip it", 0.9f))
         assertTrue(VoiceDrivenModeControllerCommandParser.isCommand("ok check", 0.9f))
+        assertTrue(VoiceDrivenModeControllerCommandParser.isCommand("repeat please", 0.9f))
     }
 
     @Test
@@ -33,10 +35,12 @@ class VoiceDrivenModeCommandParserTest {
         // Some devices report very low confidence even for correct single-word commands.
         assertTrue(VoiceDrivenModeControllerCommandParser.isCommand("check", 0.0f))
         assertTrue(VoiceDrivenModeControllerCommandParser.isCommand("skip", 0.2f))
+        assertTrue(VoiceDrivenModeControllerCommandParser.isCommand("repeat", 0.1f))
 
         // Still reject low-confidence multi-word phrases to reduce accidental triggers.
         assertFalse(VoiceDrivenModeControllerCommandParser.isCommand("ok check", 0.2f))
         assertFalse(VoiceDrivenModeControllerCommandParser.isCommand("skip please", 0.3f))
+        assertFalse(VoiceDrivenModeControllerCommandParser.isCommand("repeat please", 0.3f))
     }
 }
 
@@ -59,6 +63,7 @@ internal object VoiceDrivenModeControllerCommandParser {
             return when (tokens[0]) {
                 "check" -> "check"
                 "skip" -> "skip"
+                "repeat" -> "repeat"
                 else -> null
             }
         }
@@ -77,6 +82,7 @@ internal object VoiceDrivenModeControllerCommandParser {
         return when {
             matches("check") -> "check"
             matches("skip") -> "skip"
+            matches("repeat") -> "repeat"
             else -> null
         }
     }

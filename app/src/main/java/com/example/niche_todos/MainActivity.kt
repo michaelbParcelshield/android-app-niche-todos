@@ -49,7 +49,8 @@ class MainActivity : AppCompatActivity() {
     private var hasChildrenIds: Set<String> = emptySet()
     private var collapsedTodoIds: Set<String> = emptySet()
     private lateinit var voiceHeardText: TextView
-    private var voiceDrivenModeMenuItem: MenuItem? = null
+    private var voicePlayStopMenuItem: MenuItem? = null
+    private lateinit var voiceModeBlocker: View
     private lateinit var googleSignInFacade: GoogleSignInFacade
     private lateinit var voiceDrivenModeController: VoiceDrivenModeController
     private var voiceDrivenModeEnabled: Boolean = false
@@ -94,6 +95,7 @@ class MainActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.recycler_todos)
         emptyStateText = findViewById(R.id.text_empty_state)
         voiceHeardText = findViewById(R.id.text_voice_heard)
+        voiceModeBlocker = findViewById(R.id.view_voice_mode_blocker)
         googleSignInFacade = MainActivityDependencies.googleSignInFacadeFactory(
             this,
             getString(R.string.google_web_client_id)
@@ -107,6 +109,11 @@ class MainActivity : AppCompatActivity() {
             toggleComplete = { id -> viewModel.toggleComplete(id) },
             onUserMessage = { message ->
                 Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+            },
+            onListCompleted = {
+                runOnUiThread {
+                    stopVoiceDrivenMode(reason = "completed")
+                }
             },
             onTranscript = { text, isFinal ->
                 val prefixText = getString(R.string.voice_driven_heard_prefix, text)
@@ -132,6 +139,8 @@ class MainActivity : AppCompatActivity() {
             adapter.submitList(visibleTodos, hasChildrenIds, collapsedTodoIds)
             updateEmptyState(visibleTodos.isEmpty())
             voiceDrivenModeController.onVisibleTodosChanged()
+            // Reflect changes in completion state by enabling/disabling the Play button.
+            invalidateOptionsMenu()
         }
 
         viewModel.hasChildrenIds.observe(this) { ids ->
@@ -172,34 +181,48 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
-        voiceDrivenModeMenuItem = menu.findItem(R.id.action_voice_driven_mode)
-        voiceDrivenModeMenuItem?.isChecked = voiceDrivenModeEnabled
+        voicePlayStopMenuItem = menu.findItem(R.id.action_voice_play_stop)
         return true
     }
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
-        voiceDrivenModeMenuItem?.isChecked = voiceDrivenModeEnabled
+        val item = voicePlayStopMenuItem
+        if (item != null) {
+            if (voiceDrivenModeEnabled) {
+                item.setIcon(R.drawable.ic_stop)
+                item.title = getString(R.string.voice_driven_stop_label)
+                item.isEnabled = true
+                item.icon?.mutate()?.alpha = 255
+            } else {
+                item.setIcon(R.drawable.ic_play)
+                item.title = getString(R.string.voice_driven_play_label)
+                val canStart = canStartVoiceDrivenMode()
+                item.isEnabled = canStart
+                // AppCompat doesn't always visually dim action icons based on enabled state.
+                // Force a clear visual difference.
+                item.icon?.mutate()?.alpha = if (canStart) 255 else 102
+            }
+        }
         return super.onPrepareOptionsMenu(menu)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            R.id.action_voice_driven_mode -> {
-                toggleVoiceDrivenModeFromMenu()
+            R.id.action_voice_play_stop -> {
+                toggleVoiceDrivenModeFromButton()
                 return true
             }
         }
         return super.onOptionsItemSelected(item)
     }
 
-    private fun toggleVoiceDrivenModeFromMenu() {
+    private fun toggleVoiceDrivenModeFromButton() {
         if (voiceDrivenModeEnabled) {
-            Log.d("VoiceMode", "disabled via menu")
-            voiceDrivenModeEnabled = false
-            voiceDrivenModeController.stop()
-            voiceHeardText.visibility = View.GONE
-            voiceHeardText.text = ""
-            invalidateOptionsMenu()
+            stopVoiceDrivenMode(reason = "user_stop")
+            return
+        }
+        if (!canStartVoiceDrivenMode()) {
+            Toast.makeText(this, R.string.voice_driven_list_completed, Toast.LENGTH_SHORT).show()
             return
         }
         val permissionState = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
@@ -210,6 +233,14 @@ class MainActivity : AppCompatActivity() {
         startVoiceDrivenMode()
     }
 
+    private fun canStartVoiceDrivenMode(): Boolean {
+        val visibleTodos = viewModel.visibleTodos.value.orEmpty()
+        return VoiceDrivenTodoNavigator.nextTopLevelUnchecked(
+            visibleTodos = visibleTodos,
+            lastTodoId = null
+        ) != null
+    }
+
     private fun startVoiceDrivenMode() {
         val started = voiceDrivenModeController.start()
         if (!started) {
@@ -218,10 +249,32 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.voice_driven_unavailable, Toast.LENGTH_SHORT).show()
             return
         }
-        Log.d("VoiceMode", "enabled via menu")
         voiceDrivenModeEnabled = true
+        updateVoiceModeUi(enabled = true)
         voiceHeardText.visibility = View.VISIBLE
         invalidateOptionsMenu()
+    }
+
+    private fun stopVoiceDrivenMode(reason: String) {
+        Log.d("VoiceMode", "stopVoiceDrivenMode reason=$reason")
+        voiceDrivenModeEnabled = false
+        voiceDrivenModeController.stop()
+        updateVoiceModeUi(enabled = false)
+        voiceHeardText.visibility = View.GONE
+        voiceHeardText.text = ""
+        invalidateOptionsMenu()
+    }
+
+    private fun updateVoiceModeUi(enabled: Boolean) {
+        // Disable interaction while voice mode is running.
+        voiceModeBlocker.visibility = if (enabled) View.VISIBLE else View.GONE
+        recyclerView.alpha = if (enabled) 0.85f else 1f
+        binding.fab.isEnabled = !enabled
+        if (enabled) {
+            binding.fab.hide()
+        } else {
+            binding.fab.show()
+        }
     }
 
     override fun onDestroy() {
@@ -233,9 +286,7 @@ class MainActivity : AppCompatActivity() {
         // Stop when we truly leave the app. Some devices show transient UI for speech recognition.
         if (voiceDrivenModeEnabled) {
             Log.d("VoiceMode", "stopping due to onStop")
-            voiceDrivenModeEnabled = false
-            voiceDrivenModeController.stop()
-            invalidateOptionsMenu()
+            stopVoiceDrivenMode(reason = "onStop")
         }
         super.onStop()
     }

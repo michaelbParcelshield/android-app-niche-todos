@@ -25,6 +25,7 @@ class VoiceDrivenModeController(
     private val getVisibleTodos: () -> List<Todo>,
     private val toggleComplete: (String) -> Unit,
     private val onUserMessage: (String) -> Unit,
+    private val onListCompleted: () -> Unit,
     private val onTranscript: (String, Boolean) -> Unit
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -136,6 +137,7 @@ class VoiceDrivenModeController(
                             Log.d(TAG, "tts done (completed)")
                             phase = Phase.Idle
                             currentTodoId = null
+                            mainHandler.post { onListCompleted() }
                         }
                         else -> advance()
                     }
@@ -253,6 +255,10 @@ class VoiceDrivenModeController(
                 phase = Phase.Idle
                 advance()
             }
+
+            Command.Repeat -> {
+                speakCurrentTodoAgain()
+            }
         }
     }
 
@@ -344,7 +350,8 @@ class VoiceDrivenModeController(
 
     private enum class Command {
         Check,
-        Skip
+        Skip,
+        Repeat
     }
 
     private fun parseCommand(raw: String, confidence: Float): Command? {
@@ -360,6 +367,7 @@ class VoiceDrivenModeController(
             return when (tokens[0]) {
                 "check" -> Command.Check
                 "skip" -> Command.Skip
+                "repeat" -> Command.Repeat
                 else -> null
             }
         }
@@ -383,6 +391,7 @@ class VoiceDrivenModeController(
         return when {
             matches("check") -> Command.Check
             matches("skip") -> Command.Skip
+            matches("repeat") -> Command.Repeat
             else -> null
         }
     }
