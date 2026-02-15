@@ -248,16 +248,15 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
-    override fun onPause() {
-        // Speech recognition can surface external UI depending on device services.
-        // Keep the mode strictly in-app by stopping when we lose foreground.
+    override fun onStop() {
+        // Stop when we truly leave the app. Some devices show transient UI for speech recognition.
         if (voiceDrivenModeEnabled) {
-            Log.d("VoiceMode", "stopping due to onPause")
+            Log.d("VoiceMode", "stopping due to onStop")
             voiceDrivenModeEnabled = false
             voiceDrivenModeController.stop()
             invalidateOptionsMenu()
         }
-        super.onPause()
+        super.onStop()
     }
 
     private fun formatDateTime(dateTime: LocalDateTime?): String {

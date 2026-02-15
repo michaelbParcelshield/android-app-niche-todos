@@ -5,7 +5,6 @@ package com.example.niche_todos
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.os.Build
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -37,6 +36,7 @@ class VoiceDrivenModeController(
     }
 
     private var phase: Phase = Phase.Idle
+    private var consecutiveErrors: Int = 0
 
     fun isRunning(): Boolean = running
 
@@ -134,20 +134,26 @@ class VoiceDrivenModeController(
     private fun ensureSpeechRecognizer() {
         if (speechRecognizer != null) return
         val appContext = context.applicationContext
-        speechRecognizer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            SpeechRecognizer.createOnDeviceSpeechRecognizer(appContext)
-        } else {
-            SpeechRecognizer.createSpeechRecognizer(appContext)
-        }.apply {
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(appContext).apply {
             setRecognitionListener(object : RecognitionListener {
-                override fun onReadyForSpeech(params: Bundle?) {}
-                override fun onBeginningOfSpeech() {}
+                override fun onReadyForSpeech(params: Bundle?) {
+                    Log.d(TAG, "onReadyForSpeech")
+                }
+
+                override fun onBeginningOfSpeech() {
+                    Log.d(TAG, "onBeginningOfSpeech")
+                }
+
                 override fun onRmsChanged(rmsdB: Float) {}
                 override fun onBufferReceived(buffer: ByteArray?) {}
-                override fun onEndOfSpeech() {}
+                override fun onEndOfSpeech() {
+                    Log.d(TAG, "onEndOfSpeech")
+                }
 
                 override fun onError(error: Int) {
                     if (!running) return
+                    consecutiveErrors += 1
+                    Log.d(TAG, "onError=$error consecutiveErrors=$consecutiveErrors")
                     phase = Phase.Idle
                     // Reprompt by re-speaking the current item.
                     currentTodoId?.let { _ -> speakCurrentTodoAgain() } ?: advance()
@@ -155,6 +161,7 @@ class VoiceDrivenModeController(
 
                 override fun onResults(results: Bundle?) {
                     if (!running) return
+                    consecutiveErrors = 0
                     val phrases = results
                         ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         .orEmpty()
@@ -201,6 +208,7 @@ class VoiceDrivenModeController(
         if (!running) return
         if (speechRecognizer == null) return
         phase = Phase.Listening
+        Log.d(TAG, "startListening")
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.US.toLanguageTag())
@@ -208,6 +216,8 @@ class VoiceDrivenModeController(
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
             putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1200L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 900L)
         }
         speechRecognizer?.cancel()
         speechRecognizer?.startListening(intent)
