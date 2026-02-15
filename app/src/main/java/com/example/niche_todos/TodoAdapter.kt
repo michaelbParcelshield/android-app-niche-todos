@@ -4,12 +4,14 @@ package com.example.niche_todos
 
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Typeface
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
@@ -98,16 +100,27 @@ class TodoAdapter(
     inner class TodoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val cardView: MaterialCardView = itemView as MaterialCardView
         private val contentLayout: View = itemView.findViewById(R.id.content_layout)
+        private val nestingBar: View = itemView.findViewById(R.id.view_nesting_bar)
+        private val nestedDivider: View = itemView.findViewById(R.id.view_nested_divider)
         private val checkBox: CheckBox = itemView.findViewById(R.id.checkbox_completed)
         private val textView: TextView = itemView.findViewById(R.id.text_todo)
         private val startDateView: TextView = itemView.findViewById(R.id.text_start_date)
         private val endDateView: TextView = itemView.findViewById(R.id.text_end_date)
         private val collapseButton: ImageButton = itemView.findViewById(R.id.button_toggle_collapse)
+        private val actionButtons: LinearLayout = itemView.findViewById(R.id.action_buttons)
         private val editButton: ImageButton = itemView.findViewById(R.id.button_edit)
         private val deleteButton: ImageButton = itemView.findViewById(R.id.button_delete)
         private val addSubtaskButton: ImageButton = itemView.findViewById(R.id.button_add_subtask)
         private val dateTimeFormatter = TodoDateTimeFormatter()
-        private val basePaddingPx = contentLayout.paddingLeft
+        private val baseContentPaddingLeftPx = contentLayout.paddingLeft
+        private val baseContentPaddingTopPx = contentLayout.paddingTop
+        private val baseContentPaddingRightPx = contentLayout.paddingRight
+        private val baseContentPaddingBottomPx = contentLayout.paddingBottom
+        private val baseCardLayoutParams: ViewGroup.MarginLayoutParams =
+            (cardView.layoutParams as ViewGroup.MarginLayoutParams).let { ViewGroup.MarginLayoutParams(it) }
+        private val baseCardCornerRadius = cardView.radius
+        private val baseCardStrokeWidth = cardView.strokeWidth
+        private val baseUseCompatPadding = cardView.useCompatPadding
 
         fun bind(todo: Todo, depth: Int, isHighlighted: Boolean) {
             textView.text = todo.title
@@ -128,10 +141,8 @@ class TodoAdapter(
             startDateView.text = "$startDateText  •  $endDateText"
             endDateView.visibility = View.GONE
 
-            // Apply indentation based on nesting depth
-            val density = itemView.context.resources.displayMetrics.density
-            val indentPx = (depth * INDENT_PER_LEVEL_DP * density).toInt()
-            contentLayout.setPadding(basePaddingPx + indentPx, contentLayout.paddingTop, contentLayout.paddingRight, contentLayout.paddingBottom)
+            val isNested = depth > 0
+            applyNestingVisualStyle(isNested, depth)
 
             // Apply highlight for nest target
             val normalStrokeColor = resolveThemeColor(com.google.android.material.R.attr.colorOutline, Color.LTGRAY)
@@ -151,7 +162,7 @@ class TodoAdapter(
             } else {
                 cardView.setCardBackgroundColor(normalBackgroundColor)
                 cardView.strokeColor = normalStrokeColor
-                cardView.strokeWidth = 1
+                cardView.strokeWidth = if (isNested) 0 else 1
             }
 
             val baseTextAlpha = if (isHighlighted) 0.98f else 1f
@@ -212,6 +223,60 @@ class TodoAdapter(
             }
         }
 
+        private fun applyNestingVisualStyle(isNested: Boolean, depth: Int) {
+            val density = itemView.context.resources.displayMetrics.density
+            fun dp(dp: Int): Int = (dp * density).toInt()
+
+            val lp = (cardView.layoutParams as ViewGroup.MarginLayoutParams)
+            if (!isNested) {
+                lp.leftMargin = baseCardLayoutParams.leftMargin
+                lp.topMargin = baseCardLayoutParams.topMargin
+                lp.rightMargin = baseCardLayoutParams.rightMargin
+                lp.bottomMargin = baseCardLayoutParams.bottomMargin
+                cardView.layoutParams = lp
+
+                cardView.radius = baseCardCornerRadius
+                cardView.strokeWidth = baseCardStrokeWidth
+                cardView.useCompatPadding = baseUseCompatPadding
+                nestingBar.visibility = View.GONE
+                nestedDivider.visibility = View.GONE
+
+                // Restore the full "tile" layout for top-level items.
+                actionButtons.visibility = View.VISIBLE
+                startDateView.visibility = View.VISIBLE
+                textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+                textView.setTypeface(textView.typeface, Typeface.BOLD)
+                contentLayout.setPadding(
+                    baseContentPaddingLeftPx,
+                    baseContentPaddingTopPx,
+                    baseContentPaddingRightPx,
+                    baseContentPaddingBottomPx
+                )
+                return
+            }
+
+            // Nested items render more like a dense list: no card chrome, smaller padding,
+            // and indented with a faint guide bar.
+            val indentPx = dp(NESTED_INDENT_BASE_DP + (depth - 1) * NESTED_INDENT_PER_LEVEL_DP)
+            lp.leftMargin = baseCardLayoutParams.leftMargin + indentPx
+            lp.topMargin = 0
+            lp.rightMargin = baseCardLayoutParams.rightMargin
+            lp.bottomMargin = 0
+            cardView.layoutParams = lp
+
+            cardView.radius = 0f
+            cardView.strokeWidth = 0
+            cardView.useCompatPadding = false
+            nestingBar.visibility = View.VISIBLE
+            nestedDivider.visibility = View.VISIBLE
+
+            actionButtons.visibility = View.GONE
+            startDateView.visibility = View.GONE
+            textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            textView.setTypeface(textView.typeface, Typeface.NORMAL)
+            contentLayout.setPadding(dp(10), dp(6), dp(10), dp(6))
+        }
+
         private fun resolveThemeColor(attributeResId: Int, fallback: Int): Int {
             val typedValue = TypedValue()
             val theme = itemView.context.theme
@@ -228,6 +293,7 @@ class TodoAdapter(
     }
 
     private companion object {
-        const val INDENT_PER_LEVEL_DP = 24
+        const val NESTED_INDENT_BASE_DP = 16
+        const val NESTED_INDENT_PER_LEVEL_DP = 14
     }
 }
