@@ -348,15 +348,26 @@ class VoiceDrivenModeController(
     }
 
     private fun parseCommand(raw: String, confidence: Float): Command? {
-        // If confidence is present, require a minimum to reduce accidental triggers.
-        if (confidence in 0f..0.45f) {
-            return null
-        }
         val tokens = raw.lowercase(Locale.US)
             .split(Regex("\\s+"))
             .map { it.replace(Regex("[^a-z]"), "") }
             .filter { it.isNotBlank() }
         if (tokens.isEmpty()) return null
+
+        // Some devices report very low confidence even for correct single-word commands.
+        // Accept exact one-word commands regardless of confidence.
+        if (tokens.size == 1) {
+            return when (tokens[0]) {
+                "check" -> Command.Check
+                "skip" -> Command.Skip
+                else -> null
+            }
+        }
+
+        // If confidence is present, require a minimum to reduce accidental triggers for multi-word speech.
+        if (confidence in 0f..0.45f) {
+            return null
+        }
 
         // Only accept short, command-like utterances.
         val allowedExtra = setOf("it", "please", "pls", "ok", "okay")

@@ -33,6 +33,11 @@
                 android:visible="false"
                 app:showAsAction="never" />
             <item
+                android:id="@+id/action_voice_seed_demo"
+                android:title="@string/voice_driven_seed_demo"
+                android:visible="false"
+                app:showAsAction="never" />
+            <item
                 android:id="@+id/action_toggle_backend_endpoint"
                 android:checkable="true"
                 android:title="@string/backend_endpoint_toggle_label"

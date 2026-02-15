@@ -42,6 +42,18 @@ class TodoViewModel(
         return startOfDay to endOfDay
     }
 
+    // Debug-only escape hatch for running UI/voice flows without backend auth.
+    // This is intentionally not exposed as LiveData to avoid accidental production use.
+    private var debugLocalOnlyMode: Boolean = false
+
+    internal fun debugEnableLocalOnlyMode(enabled: Boolean) {
+        debugLocalOnlyMode = enabled
+    }
+
+    internal fun debugReplaceTodos(newTodos: List<Todo>) {
+        updateTodos(newTodos)
+    }
+
     fun defaultDateRange(): Pair<LocalDateTime, LocalDateTime> = currentDayBounds()
 
     fun refreshTodos() {
@@ -130,6 +142,11 @@ class TodoViewModel(
         val optimistic = todo.copy(isCompleted = updatedCompleted)
         _todos.value = currentList.map { item -> if (item.id == id) optimistic else item }
         _syncError.value = null
+
+        if (debugLocalOnlyMode) {
+            return
+        }
+
         viewModelScope.launch {
             when (val result = todoRepository.updateTodo(
                 id = todo.id,

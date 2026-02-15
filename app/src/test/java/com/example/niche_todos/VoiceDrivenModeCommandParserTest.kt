@@ -30,8 +30,13 @@ class VoiceDrivenModeCommandParserTest {
 
     @Test
     fun rejectsLowConfidence() {
-        assertFalse(VoiceDrivenModeControllerCommandParser.isCommand("check", 0.2f))
-        assertFalse(VoiceDrivenModeControllerCommandParser.isCommand("skip", 0.3f))
+        // Some devices report very low confidence even for correct single-word commands.
+        assertTrue(VoiceDrivenModeControllerCommandParser.isCommand("check", 0.0f))
+        assertTrue(VoiceDrivenModeControllerCommandParser.isCommand("skip", 0.2f))
+
+        // Still reject low-confidence multi-word phrases to reduce accidental triggers.
+        assertFalse(VoiceDrivenModeControllerCommandParser.isCommand("ok check", 0.2f))
+        assertFalse(VoiceDrivenModeControllerCommandParser.isCommand("skip please", 0.3f))
     }
 }
 
@@ -44,14 +49,25 @@ internal object VoiceDrivenModeControllerCommandParser {
     }
 
     fun parse(raw: String, confidence: Float): String? {
-        if (confidence in 0f..0.45f) {
-            return null
-        }
         val tokens = raw.lowercase()
             .split(Regex("\\s+"))
             .map { it.replace(Regex("[^a-z]"), "") }
             .filter { it.isNotBlank() }
-        if (tokens.isEmpty() || tokens.size > 3) return null
+        if (tokens.isEmpty()) return null
+
+        if (tokens.size == 1) {
+            return when (tokens[0]) {
+                "check" -> "check"
+                "skip" -> "skip"
+                else -> null
+            }
+        }
+
+        if (confidence in 0f..0.45f) {
+            return null
+        }
+
+        if (tokens.size > 3) return null
         val allowedExtra = setOf("it", "please", "pls", "ok", "okay")
         fun matches(cmd: String): Boolean {
             if (!tokens.contains(cmd)) return false
@@ -65,4 +81,3 @@ internal object VoiceDrivenModeControllerCommandParser {
         }
     }
 }
-

@@ -56,6 +56,7 @@ class MainActivity : AppCompatActivity() {
     private var voiceDrivenModeMenuItem: MenuItem? = null
     private var voiceSimCheckMenuItem: MenuItem? = null
     private var voiceSimSkipMenuItem: MenuItem? = null
+    private var voiceSeedDemoMenuItem: MenuItem? = null
     private var backendEndpointMenuItem: MenuItem? = null
     private lateinit var backendEndpointSelector: BackendEndpointSelector
     private lateinit var googleSignInFacade: GoogleSignInFacade
@@ -193,6 +194,7 @@ class MainActivity : AppCompatActivity() {
         voiceDrivenModeMenuItem = menu.findItem(R.id.action_voice_driven_mode)
         voiceSimCheckMenuItem = menu.findItem(R.id.action_voice_sim_check)
         voiceSimSkipMenuItem = menu.findItem(R.id.action_voice_sim_skip)
+        voiceSeedDemoMenuItem = menu.findItem(R.id.action_voice_seed_demo)
         backendEndpointMenuItem = menu.findItem(R.id.action_toggle_backend_endpoint)
         backendStatusViewModel.healthStatus.value
             ?.let { renderHealthStatusMenuItemEnabledState(it) }
@@ -203,6 +205,7 @@ class MainActivity : AppCompatActivity() {
         val showVoiceSim = isDebugBuild()
         voiceSimCheckMenuItem?.isVisible = showVoiceSim
         voiceSimSkipMenuItem?.isVisible = showVoiceSim
+        voiceSeedDemoMenuItem?.isVisible = showVoiceSim
         return true
     }
 
@@ -212,6 +215,7 @@ class MainActivity : AppCompatActivity() {
         val showVoiceSim = isDebugBuild()
         voiceSimCheckMenuItem?.isVisible = showVoiceSim
         voiceSimSkipMenuItem?.isVisible = showVoiceSim
+        voiceSeedDemoMenuItem?.isVisible = showVoiceSim
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -242,6 +246,11 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
 
+            R.id.action_voice_seed_demo -> {
+                seedVoiceDemoTodos()
+                return true
+            }
+
             R.id.action_toggle_backend_endpoint -> {
                 val nextState = !item.isChecked
                 backendEndpointSelector.setUseCloud(nextState)
@@ -251,6 +260,36 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return super.onOptionsItemSelected(item)
+    }
+
+    private fun seedVoiceDemoTodos() {
+        // Use local-only mode so voice flows can be tested without auth/network.
+        viewModel.debugEnableLocalOnlyMode(true)
+        val seeded = listOf(
+            Todo(
+                id = "demo-1",
+                properties = listOf(TodoProperty.Title("Demo one")),
+                isCompleted = false,
+                parentId = null,
+                sortOrder = 0
+            ),
+            Todo(
+                id = "demo-1-1",
+                properties = listOf(TodoProperty.Title("Nested demo (ignored)")),
+                isCompleted = false,
+                parentId = "demo-1",
+                sortOrder = 1
+            ),
+            Todo(
+                id = "demo-2",
+                properties = listOf(TodoProperty.Title("Demo two")),
+                isCompleted = false,
+                parentId = null,
+                sortOrder = 2
+            )
+        )
+        viewModel.debugReplaceTodos(seeded)
+        Toast.makeText(this, "Seeded demo todos", Toast.LENGTH_SHORT).show()
     }
 
     private fun toggleVoiceDrivenModeFromMenu() {
