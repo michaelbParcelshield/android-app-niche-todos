@@ -234,7 +234,7 @@ class TodoAdapter(
                 cardView.strokeWidth = baseCardStrokeWidth
                 cardView.useCompatPadding = baseUseCompatPadding
                 nestingBar.visibility = View.GONE
-                nestedDivider.visibility = View.VISIBLE
+                nestedDivider.visibility = View.GONE
 
                 // Restore the full "tile" layout for top-level items.
                 moreButton.visibility = View.VISIBLE
@@ -263,8 +263,8 @@ class TodoAdapter(
             cardView.radius = 0f
             cardView.strokeWidth = 0
             cardView.useCompatPadding = false
-            nestingBar.visibility = View.VISIBLE
-            nestedDivider.visibility = View.VISIBLE
+            nestingBar.visibility = View.GONE
+            nestedDivider.visibility = View.GONE
 
             // Keep actions available for nested items too (edit/delete/add-subtask), matching top-level behavior.
             moreButton.visibility = View.VISIBLE
