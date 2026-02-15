@@ -28,6 +28,8 @@ import android.widget.Toast
 import android.util.Log
 import com.example.niche_todos.databinding.ActivityMainBinding
 import com.google.android.material.textfield.TextInputEditText
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import java.net.URL
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -35,33 +37,23 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.ZoneId
 import java.util.Locale
-import androidx.appcompat.widget.SwitchCompat
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var viewModel: TodoViewModel
-    private lateinit var backendStatusViewModel: BackendStatusViewModel
+    private lateinit var authRepository: AuthRepository
     private lateinit var adapter: TodoAdapter
     private lateinit var recyclerView: RecyclerView
     private lateinit var emptyStateText: TextView
     private var hasChildrenIds: Set<String> = emptySet()
     private var collapsedTodoIds: Set<String> = emptySet()
-    private lateinit var healthStatusText: TextView
-    private lateinit var authStatusText: TextView
     private lateinit var voiceHeardText: TextView
-    private lateinit var backendEndpointSwitch: SwitchCompat
-    private var healthCheckMenuItem: MenuItem? = null
-    private var googleSignInMenuItem: MenuItem? = null
     private var voiceDrivenModeMenuItem: MenuItem? = null
-    private var voiceSimCheckMenuItem: MenuItem? = null
-    private var voiceSimSkipMenuItem: MenuItem? = null
-    private var voiceSeedDemoMenuItem: MenuItem? = null
-    private var backendEndpointMenuItem: MenuItem? = null
-    private lateinit var backendEndpointSelector: BackendEndpointSelector
     private lateinit var googleSignInFacade: GoogleSignInFacade
     private lateinit var voiceDrivenModeController: VoiceDrivenModeController
     private var voiceDrivenModeEnabled: Boolean = false
+    private var signInLaunched: Boolean = false
     private val googleSignInResultHandler = GoogleSignInResultHandler()
     private val googleSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -88,9 +80,9 @@ class MainActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
 
-        backendEndpointSelector = BackendEndpointSelector(applicationContext)
-        val endpointMode = resolveEndpointMode()
+        val endpointMode = BackendEndpointMode.Cloud
         val repositories = buildRepositories(endpointMode)
+        authRepository = repositories.authRepository
         viewModel = ViewModelProvider(
             this,
             TodoViewModelFactory(repositories.todoRepository)
@@ -98,14 +90,10 @@ class MainActivity : AppCompatActivity() {
             BackendEndpointViewModelKeys.todoKey(endpointMode),
             TodoViewModel::class.java
         )
-        backendStatusViewModel = buildBackendStatusViewModel(repositories, endpointMode)
 
         recyclerView = findViewById(R.id.recycler_todos)
         emptyStateText = findViewById(R.id.text_empty_state)
-        healthStatusText = findViewById(R.id.text_health_status)
-        authStatusText = findViewById(R.id.text_auth_status)
         voiceHeardText = findViewById(R.id.text_voice_heard)
-        backendEndpointSwitch = findViewById(R.id.switch_backend_endpoint)
         googleSignInFacade = MainActivityDependencies.googleSignInFacadeFactory(
             this,
             getString(R.string.google_web_client_id)
@@ -169,127 +157,39 @@ class MainActivity : AppCompatActivity() {
             Log.d("VoiceMode", "syncError: $value")
             Toast.makeText(this, value, Toast.LENGTH_SHORT).show()
         }
-        backendStatusViewModel.healthStatus.observe(this) { status ->
-            renderHealthStatus(status)
-        }
-        backendStatusViewModel.authStatus.observe(this) { status ->
-            renderAuthStatus(status)
-            if (status is AuthStatus.Success) {
-                viewModel.refreshTodos()
-            }
-        }
 
         binding.fab.setOnClickListener {
             showAddDialog()
         }
 
-        configureBackendEndpointSwitch()
         viewModel.refreshTodos()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        ensureSignedIn()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
-        healthCheckMenuItem = menu.findItem(R.id.action_health_check)
-        googleSignInMenuItem = menu.findItem(R.id.action_google_sign_in)
         voiceDrivenModeMenuItem = menu.findItem(R.id.action_voice_driven_mode)
-        voiceSimCheckMenuItem = menu.findItem(R.id.action_voice_sim_check)
-        voiceSimSkipMenuItem = menu.findItem(R.id.action_voice_sim_skip)
-        voiceSeedDemoMenuItem = menu.findItem(R.id.action_voice_seed_demo)
-        backendEndpointMenuItem = menu.findItem(R.id.action_toggle_backend_endpoint)
-        backendStatusViewModel.healthStatus.value
-            ?.let { renderHealthStatusMenuItemEnabledState(it) }
-        backendStatusViewModel.authStatus.value
-            ?.let { renderAuthStatusMenuItemEnabledState(it) }
-        configureBackendEndpointMenuItem()
         voiceDrivenModeMenuItem?.isChecked = voiceDrivenModeEnabled
-        val showVoiceSim = isDebugBuild()
-        voiceSimCheckMenuItem?.isVisible = showVoiceSim
-        voiceSimSkipMenuItem?.isVisible = showVoiceSim
-        voiceSeedDemoMenuItem?.isVisible = showVoiceSim
         return true
     }
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
-        configureBackendEndpointMenuItem()
         voiceDrivenModeMenuItem?.isChecked = voiceDrivenModeEnabled
-        val showVoiceSim = isDebugBuild()
-        voiceSimCheckMenuItem?.isVisible = showVoiceSim
-        voiceSimSkipMenuItem?.isVisible = showVoiceSim
-        voiceSeedDemoMenuItem?.isVisible = showVoiceSim
         return super.onPrepareOptionsMenu(menu)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            R.id.action_health_check -> {
-                backendStatusViewModel.runHealthCheck()
-                return true
-            }
-
-            R.id.action_google_sign_in -> {
-                startGoogleSignIn()
-                return true
-            }
-
             R.id.action_voice_driven_mode -> {
                 toggleVoiceDrivenModeFromMenu()
                 return true
             }
-
-            R.id.action_voice_sim_check -> {
-                voiceDrivenModeController.debugSimulatePhrase("check")
-                return true
-            }
-
-            R.id.action_voice_sim_skip -> {
-                voiceDrivenModeController.debugSimulatePhrase("skip")
-                return true
-            }
-
-            R.id.action_voice_seed_demo -> {
-                seedVoiceDemoTodos()
-                return true
-            }
-
-            R.id.action_toggle_backend_endpoint -> {
-                val nextState = !item.isChecked
-                backendEndpointSelector.setUseCloud(nextState)
-                item.isChecked = nextState
-                recreate()
-                return true
-            }
         }
         return super.onOptionsItemSelected(item)
-    }
-
-    private fun seedVoiceDemoTodos() {
-        // Use local-only mode so voice flows can be tested without auth/network.
-        viewModel.debugEnableLocalOnlyMode(true)
-        val seeded = listOf(
-            Todo(
-                id = "demo-1",
-                properties = listOf(TodoProperty.Title("Demo one")),
-                isCompleted = false,
-                parentId = null,
-                sortOrder = 0
-            ),
-            Todo(
-                id = "demo-1-1",
-                properties = listOf(TodoProperty.Title("Nested demo (ignored)")),
-                isCompleted = false,
-                parentId = "demo-1",
-                sortOrder = 1
-            ),
-            Todo(
-                id = "demo-2",
-                properties = listOf(TodoProperty.Title("Demo two")),
-                isCompleted = false,
-                parentId = null,
-                sortOrder = 2
-            )
-        )
-        viewModel.debugReplaceTodos(seeded)
-        Toast.makeText(this, "Seeded demo todos", Toast.LENGTH_SHORT).show()
     }
 
     private fun toggleVoiceDrivenModeFromMenu() {
@@ -466,9 +366,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun startGoogleSignIn() {
-        backendStatusViewModel.startSignIn()
-        googleSignInLauncher.launch(googleSignInFacade.createSignInIntent())
+    private fun ensureSignedIn() {
+        // If we already have backend tokens, just use them.
+        val tokens = EncryptedAuthTokenStore(applicationContext).load()
+        if (tokens != null) {
+            return
+        }
+        if (signInLaunched) {
+            return
+        }
+        val intent = googleSignInFacade.createSignInIntent()
+        if (intent.resolveActivity(packageManager) == null) {
+            Log.w("Auth", "Google Sign-In intent cannot be resolved; skipping auto sign-in")
+            return
+        }
+        signInLaunched = true
+        googleSignInLauncher.launch(intent)
     }
 
     private fun showAddDialog() {
@@ -617,40 +530,13 @@ class MainActivity : AppCompatActivity() {
         ).show()
     }
 
-    private fun buildBackendStatusViewModel(
-        repositories: BackendRepositoryBundle,
-        endpointMode: BackendEndpointMode
-    ): BackendStatusViewModel {
-        val factory = BackendStatusViewModelFactory(repositories)
-        return ViewModelProvider(this, factory).get(
-            BackendEndpointViewModelKeys.statusKey(endpointMode),
-            BackendStatusViewModel::class.java
-        )
-    }
-
     private fun buildRepositories(endpointMode: BackendEndpointMode): BackendRepositoryBundle {
-        val endpoints = if (endpointMode == BackendEndpointMode.Cloud) {
-            buildEndpoints(
-                healthUrlResId = R.string.backend_health_url_cloud,
-                authUrlResId = R.string.backend_auth_url_cloud,
-                todosUrlResId = R.string.backend_todos_url_cloud
-            )
-        } else {
-            buildEndpoints(
-                healthUrlResId = R.string.backend_health_url,
-                authUrlResId = R.string.backend_auth_url,
-                todosUrlResId = R.string.backend_todos_url
-            )
-        }
+        val endpoints = buildEndpoints(
+            healthUrlResId = R.string.backend_health_url_cloud,
+            authUrlResId = R.string.backend_auth_url_cloud,
+            todosUrlResId = R.string.backend_todos_url_cloud
+        )
         return MainActivityDependencies.repositoryFactory(applicationContext, endpoints)
-    }
-
-    private fun resolveEndpointMode(): BackendEndpointMode {
-        return if (isDebugBuild() && !backendEndpointSelector.useCloud()) {
-            BackendEndpointMode.Local
-        } else {
-            BackendEndpointMode.Cloud
-        }
     }
 
     private fun buildEndpoints(
@@ -665,81 +551,8 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun configureBackendEndpointSwitch() {
-        if (!isDebugBuild()) {
-            backendEndpointSwitch.visibility = View.GONE
-            return
-        }
-        backendEndpointSwitch.visibility = View.VISIBLE
-        backendEndpointSwitch.setOnCheckedChangeListener(null)
-        backendEndpointSwitch.isChecked = backendEndpointSelector.useCloud()
-        backendEndpointSwitch.setOnCheckedChangeListener { _, isChecked ->
-            backendEndpointSelector.setUseCloud(isChecked)
-            recreate()
-        }
-    }
-
     private fun isDebugBuild(): Boolean {
         return (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-    }
-
-    private fun renderHealthStatus(status: HealthStatus) {
-        renderHealthStatusMenuItemEnabledState(status)
-        healthStatusText.text = when (status) {
-            HealthStatus.Idle -> getString(R.string.health_check_initial)
-            HealthStatus.InProgress -> getString(R.string.health_check_in_progress)
-            is HealthStatus.Success -> getString(R.string.health_check_success, status.statusCode)
-            is HealthStatus.Failure -> {
-                val details = status.message?.takeIf { it.isNotBlank() }
-                if (details == null) {
-                    getString(R.string.health_check_failure)
-                } else {
-                    getString(R.string.health_check_failure_with_details, details)
-                }
-            }
-        }
-    }
-
-    private fun renderAuthStatus(status: AuthStatus) {
-        renderAuthStatusMenuItemEnabledState(status)
-        authStatusText.text = when (status) {
-            AuthStatus.SignedOut -> getString(R.string.auth_status_initial)
-            AuthStatus.SigningIn -> getString(R.string.auth_status_signing_in)
-            AuthStatus.Authenticating -> getString(R.string.auth_status_authenticating)
-            AuthStatus.MissingIdToken -> getString(R.string.auth_status_missing_id_token)
-            is AuthStatus.Success -> getString(R.string.auth_status_success, status.statusCode)
-            is AuthStatus.Failure -> {
-                val details = status.message?.takeIf { it.isNotBlank() }
-                if (details == null) {
-                    getString(R.string.auth_status_failure)
-                } else {
-                    getString(R.string.auth_status_failure_with_details, details)
-                }
-            }
-        }
-    }
-
-    private fun configureBackendEndpointMenuItem() {
-        val endpointItem = backendEndpointMenuItem ?: return
-        if (!isDebugBuild()) {
-            endpointItem.isVisible = false
-            return
-        }
-        endpointItem.isVisible = true
-        endpointItem.isChecked = backendEndpointSelector.useCloud()
-    }
-
-    private fun renderHealthStatusMenuItemEnabledState(status: HealthStatus) {
-        healthCheckMenuItem?.isEnabled = status !is HealthStatus.InProgress
-    }
-
-    private fun renderAuthStatusMenuItemEnabledState(status: AuthStatus) {
-        googleSignInMenuItem?.isEnabled = status !is AuthStatus.Authenticating
-    }
-
-    @VisibleForTesting
-    internal fun isSignInMenuItemEnabled(): Boolean {
-        return googleSignInMenuItem?.isEnabled ?: true
     }
 
     @VisibleForTesting
@@ -749,10 +562,28 @@ class MainActivity : AppCompatActivity() {
             idToken = googleSignInFacade.extractIdToken(data)
         )
         when (outcome) {
-            GoogleSignInOutcome.Cancelled -> backendStatusViewModel.reportSignInFailure()
-            GoogleSignInOutcome.MissingIdToken -> backendStatusViewModel.reportMissingIdToken()
-            is GoogleSignInOutcome.Success ->
-                backendStatusViewModel.authenticateWithGoogle(outcome.idToken)
+            GoogleSignInOutcome.Cancelled,
+            GoogleSignInOutcome.MissingIdToken -> {
+                signInLaunched = false
+                Toast.makeText(this, "Sign-in failed", Toast.LENGTH_SHORT).show()
+            }
+
+            is GoogleSignInOutcome.Success -> {
+                lifecycleScope.launch {
+                    val result = authRepository.exchangeGoogleIdToken(outcome.idToken)
+                    when (result) {
+                        is AuthResult.Success -> viewModel.refreshTodos()
+                        is AuthResult.Failure -> Toast.makeText(
+                            this@MainActivity,
+                            result.message ?: "Auth failed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    if (result is AuthResult.Failure) {
+                        signInLaunched = false
+                    }
+                }
+            }
         }
     }
 }
