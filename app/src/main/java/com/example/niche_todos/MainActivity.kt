@@ -50,9 +50,6 @@ class MainActivity : AppCompatActivity() {
     private var collapsedTodoIds: Set<String> = emptySet()
     private lateinit var voiceHeardText: TextView
     private var voiceDrivenModeMenuItem: MenuItem? = null
-    private var voiceSimCheckMenuItem: MenuItem? = null
-    private var voiceSimSkipMenuItem: MenuItem? = null
-    private var voiceSeedDemoMenuItem: MenuItem? = null
     private lateinit var googleSignInFacade: GoogleSignInFacade
     private lateinit var voiceDrivenModeController: VoiceDrivenModeController
     private var voiceDrivenModeEnabled: Boolean = false
@@ -176,23 +173,12 @@ class MainActivity : AppCompatActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
         voiceDrivenModeMenuItem = menu.findItem(R.id.action_voice_driven_mode)
-        voiceSimCheckMenuItem = menu.findItem(R.id.action_voice_sim_check)
-        voiceSimSkipMenuItem = menu.findItem(R.id.action_voice_sim_skip)
-        voiceSeedDemoMenuItem = menu.findItem(R.id.action_voice_seed_demo)
         voiceDrivenModeMenuItem?.isChecked = voiceDrivenModeEnabled
-        val showVoiceSim = isDebugBuild()
-        voiceSimCheckMenuItem?.isVisible = showVoiceSim
-        voiceSimSkipMenuItem?.isVisible = showVoiceSim
-        voiceSeedDemoMenuItem?.isVisible = showVoiceSim
         return true
     }
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         voiceDrivenModeMenuItem?.isChecked = voiceDrivenModeEnabled
-        val showVoiceSim = isDebugBuild()
-        voiceSimCheckMenuItem?.isVisible = showVoiceSim
-        voiceSimSkipMenuItem?.isVisible = showVoiceSim
-        voiceSeedDemoMenuItem?.isVisible = showVoiceSim
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -202,53 +188,8 @@ class MainActivity : AppCompatActivity() {
                 toggleVoiceDrivenModeFromMenu()
                 return true
             }
-
-            R.id.action_voice_sim_check -> {
-                voiceDrivenModeController.debugSimulatePhrase("check")
-                return true
-            }
-
-            R.id.action_voice_sim_skip -> {
-                voiceDrivenModeController.debugSimulatePhrase("skip")
-                return true
-            }
-
-            R.id.action_voice_seed_demo -> {
-                seedVoiceDemoTodos()
-                return true
-            }
         }
         return super.onOptionsItemSelected(item)
-    }
-
-    private fun seedVoiceDemoTodos() {
-        // Use local-only mode so voice flows can be tested without auth/network.
-        viewModel.debugEnableLocalOnlyMode(true)
-        val seeded = listOf(
-            Todo(
-                id = "demo-1",
-                properties = listOf(TodoProperty.Title("Demo one")),
-                isCompleted = false,
-                parentId = null,
-                sortOrder = 0
-            ),
-            Todo(
-                id = "demo-1-1",
-                properties = listOf(TodoProperty.Title("Nested demo (ignored)")),
-                isCompleted = false,
-                parentId = "demo-1",
-                sortOrder = 1
-            ),
-            Todo(
-                id = "demo-2",
-                properties = listOf(TodoProperty.Title("Demo two")),
-                isCompleted = false,
-                parentId = null,
-                sortOrder = 2
-            )
-        )
-        viewModel.debugReplaceTodos(seeded)
-        Toast.makeText(this, "Seeded demo todos", Toast.LENGTH_SHORT).show()
     }
 
     private fun toggleVoiceDrivenModeFromMenu() {

@@ -14,21 +14,6 @@
                 android:checkable="true"
                 android:title="@string/voice_driven_mode_label"
                 app:showAsAction="never" />
-            <item
-                android:id="@+id/action_voice_sim_check"
-                android:title="@string/voice_driven_sim_check"
-                android:visible="false"
-                app:showAsAction="never" />
-            <item
-                android:id="@+id/action_voice_sim_skip"
-                android:title="@string/voice_driven_sim_skip"
-                android:visible="false"
-                app:showAsAction="never" />
-            <item
-                android:id="@+id/action_voice_seed_demo"
-                android:title="@string/voice_driven_seed_demo"
-                android:visible="false"
-                app:showAsAction="never" />
         </menu>
     </item>
 </menu>
