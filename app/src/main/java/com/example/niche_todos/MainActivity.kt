@@ -50,7 +50,6 @@ class MainActivity : AppCompatActivity() {
     private var collapsedTodoIds: Set<String> = emptySet()
     private lateinit var voiceHeardText: TextView
     private var voicePlayStopMenuItem: MenuItem? = null
-    private var voiceResetMenuItem: MenuItem? = null
     private lateinit var voiceModeBlocker: View
     private lateinit var googleSignInFacade: GoogleSignInFacade
     private lateinit var voiceDrivenModeController: VoiceDrivenModeController
@@ -181,7 +180,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
         voicePlayStopMenuItem = menu.findItem(R.id.action_voice_play_stop)
-        voiceResetMenuItem = menu.findItem(R.id.action_voice_reset)
         return true
     }
 
@@ -196,7 +194,6 @@ class MainActivity : AppCompatActivity() {
                 item.title = getString(R.string.voice_driven_play_label)
             }
         }
-        voiceResetMenuItem?.isVisible = voiceDrivenModeEnabled
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -204,10 +201,6 @@ class MainActivity : AppCompatActivity() {
         when (item.itemId) {
             R.id.action_voice_play_stop -> {
                 toggleVoiceDrivenModeFromButton()
-                return true
-            }
-            R.id.action_voice_reset -> {
-                voiceDrivenModeController.reset()
                 return true
             }
         }

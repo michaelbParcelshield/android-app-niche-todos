@@ -37,7 +37,6 @@
     <string name="voice_driven_mode_label">Voice-driven mode</string>
     <string name="voice_driven_play_label">Play voice mode</string>
     <string name="voice_driven_stop_label">Stop voice mode</string>
-    <string name="voice_driven_reset_label">Reset voice mode</string>
     <string name="voice_driven_list_completed">List completed</string>
     <string name="voice_driven_prompt_check_or_skip">Say "check", "skip", or "repeat"</string>
     <string name="voice_driven_permission_denied">Microphone permission is required for voice-driven mode</string>

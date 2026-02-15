@@ -77,18 +77,6 @@ class VoiceDrivenModeController(
         tts?.stop()
     }
 
-    fun reset() {
-        if (!running) return
-        Log.d(TAG, "reset")
-        phase = Phase.Idle
-        currentTodoId = null
-        lastTodoId = null
-        pendingCheckedIds.clear()
-        speechRecognizer?.cancel()
-        tts?.stop()
-        advance()
-    }
-
     fun shutdown() {
         stop()
         speechRecognizer?.destroy()
