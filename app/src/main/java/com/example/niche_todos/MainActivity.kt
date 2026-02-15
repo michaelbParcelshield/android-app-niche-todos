@@ -139,6 +139,8 @@ class MainActivity : AppCompatActivity() {
             adapter.submitList(visibleTodos, hasChildrenIds, collapsedTodoIds)
             updateEmptyState(visibleTodos.isEmpty())
             voiceDrivenModeController.onVisibleTodosChanged()
+            // Reflect changes in completion state by enabling/disabling the Play button.
+            invalidateOptionsMenu()
         }
 
         viewModel.hasChildrenIds.observe(this) { ids ->
@@ -189,9 +191,11 @@ class MainActivity : AppCompatActivity() {
             if (voiceDrivenModeEnabled) {
                 item.setIcon(R.drawable.ic_stop)
                 item.title = getString(R.string.voice_driven_stop_label)
+                item.isEnabled = true
             } else {
                 item.setIcon(R.drawable.ic_play)
                 item.title = getString(R.string.voice_driven_play_label)
+                item.isEnabled = canStartVoiceDrivenMode()
             }
         }
         return super.onPrepareOptionsMenu(menu)
@@ -212,12 +216,24 @@ class MainActivity : AppCompatActivity() {
             stopVoiceDrivenMode(reason = "user_stop")
             return
         }
+        if (!canStartVoiceDrivenMode()) {
+            Toast.makeText(this, R.string.voice_driven_list_completed, Toast.LENGTH_SHORT).show()
+            return
+        }
         val permissionState = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
         if (permissionState != PackageManager.PERMISSION_GRANTED) {
             voicePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             return
         }
         startVoiceDrivenMode()
+    }
+
+    private fun canStartVoiceDrivenMode(): Boolean {
+        val visibleTodos = viewModel.visibleTodos.value.orEmpty()
+        return VoiceDrivenTodoNavigator.nextTopLevelUnchecked(
+            visibleTodos = visibleTodos,
+            lastTodoId = null
+        ) != null
     }
 
     private fun startVoiceDrivenMode() {
