@@ -4,7 +4,6 @@ package com.example.niche_todos
 
 import android.app.Activity
 import android.content.Intent
-import android.widget.Button
 import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -82,23 +81,21 @@ class MainActivitySignInInstrumentedTest {
     }
 
     @Test
-    fun handleGoogleSignInResult_disablesButtonWhileAuthenticating() {
+    fun handleGoogleSignInResult_disablesMenuItemWhileAuthenticating() {
         val gate = CompletableDeferred<Unit>()
         authRepository.gate = gate
         val scenario = ActivityScenario.launch(MainActivity::class.java)
 
         scenario.onActivity { activity ->
             activity.handleGoogleSignInResult(Activity.RESULT_OK, Intent())
-            val signInButton = activity.findViewById<Button>(R.id.button_google_sign_in)
-            assertFalse(signInButton.isEnabled)
+            assertFalse(activity.isSignInMenuItemEnabled())
         }
 
         gate.complete(Unit)
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
 
         scenario.onActivity { activity ->
-            val signInButton = activity.findViewById<Button>(R.id.button_google_sign_in)
-            assertTrue(signInButton.isEnabled)
+            assertTrue(activity.isSignInMenuItemEnabled())
         }
     }
 

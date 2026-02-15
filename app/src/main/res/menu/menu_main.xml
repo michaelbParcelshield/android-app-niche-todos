@@ -2,9 +2,27 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="com.example.niche_todos.MainActivity">
+
     <item
         android:id="@+id/action_settings"
         android:orderInCategory="100"
         android:title="@string/action_settings"
-        app:showAsAction="never" />
+        app:showAsAction="never">
+        <menu>
+            <item
+                android:id="@+id/action_health_check"
+                android:title="@string/health_check_button"
+                app:showAsAction="never" />
+            <item
+                android:id="@+id/action_google_sign_in"
+                android:title="@string/auth_button_google"
+                app:showAsAction="never" />
+            <item
+                android:id="@+id/action_toggle_backend_endpoint"
+                android:checkable="true"
+                android:title="@string/backend_endpoint_toggle_label"
+                android:visible="false"
+                app:showAsAction="never" />
+        </menu>
+    </item>
 </menu>
