@@ -5,26 +5,48 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
-    app:cardElevation="2dp"
-    app:cardCornerRadius="8dp">
+    android:layout_marginStart="10dp"
+    android:layout_marginEnd="10dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginBottom="4dp"
+    app:cardElevation="0dp"
+    app:cardCornerRadius="12dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="?attr/colorOutline"
+    app:cardBackgroundColor="?attr/colorSurface"
+    app:cardUseCompatPadding="true">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/content_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="12dp">
+        android:padding="10dp"
+        android:foreground="?attr/selectableItemBackground">
 
         <CheckBox
             android:id="@+id/checkbox_completed"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:contentDescription="@string/content_desc_mark_complete"
-            android:minWidth="48dp"
-            android:minHeight="48dp"
+            android:minWidth="36dp"
+            android:minHeight="36dp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+        <ImageButton
+            android:id="@+id/button_toggle_collapse"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="2dp"
+            android:contentDescription="@string/content_desc_expand_todo"
+            android:src="@drawable/ic_expand_more"
+            android:tint="?attr/colorPrimary"
+            app:layout_constraintStart_toEndOf="@id/checkbox_completed"
+            app:layout_constraintTop_toTopOf="@id/text_todo"
+            app:layout_constraintBottom_toBottomOf="@id/text_todo"/>
 
         <TextView
             android:id="@+id/text_todo"
@@ -32,11 +54,13 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp"
-            android:textSize="16sp"
-            android:maxLines="2"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="15sp"
+            android:maxLines="1"
+            android:textStyle="bold"
             android:ellipsize="end"
-            app:layout_constraintStart_toEndOf="@id/checkbox_completed"
-            app:layout_constraintEnd_toStartOf="@id/button_add_subtask"
+            app:layout_constraintStart_toEndOf="@id/button_toggle_collapse"
+            app:layout_constraintEnd_toStartOf="@id/action_buttons"
             app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
@@ -45,61 +69,68 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp"
-            android:layout_marginTop="4dp"
-            android:textSize="12sp"
+            android:layout_marginTop="2dp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:alpha="0.9"
+            android:textSize="11sp"
             android:maxLines="1"
             android:ellipsize="end"
-            app:layout_constraintStart_toEndOf="@id/checkbox_completed"
-            app:layout_constraintEnd_toStartOf="@id/button_add_subtask"
+            app:layout_constraintStart_toEndOf="@id/button_toggle_collapse"
+            app:layout_constraintEnd_toStartOf="@id/action_buttons"
             app:layout_constraintTop_toBottomOf="@id/text_todo" />
 
         <TextView
             android:id="@+id/text_end_date"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
-            android:layout_marginTop="2dp"
-            android:textSize="12sp"
-            android:maxLines="1"
-            android:ellipsize="end"
-            app:layout_constraintStart_toEndOf="@id/checkbox_completed"
-            app:layout_constraintEnd_toStartOf="@id/button_add_subtask"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            app:layout_constraintStart_toEndOf="@id/button_toggle_collapse"
+            app:layout_constraintEnd_toStartOf="@id/action_buttons"
             app:layout_constraintTop_toBottomOf="@id/text_start_date"
             app:layout_constraintBottom_toBottomOf="parent" />
 
-        <ImageButton
-            android:id="@+id/button_add_subtask"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_input_add"
-            android:contentDescription="@string/content_desc_add_subtask"
-            app:layout_constraintEnd_toStartOf="@id/button_edit"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
-
-        <ImageButton
-            android:id="@+id/button_edit"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_edit"
-            android:contentDescription="@string/content_desc_edit_todo"
-            app:layout_constraintEnd_toStartOf="@id/button_delete"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
-
-        <ImageButton
-            android:id="@+id/button_delete"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_delete"
-            android:contentDescription="@string/content_desc_delete_todo"
+        <LinearLayout
+            android:id="@+id/action_buttons"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <ImageButton
+                android:id="@+id/button_add_subtask"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/content_desc_add_subtask"
+                android:padding="2dp"
+                android:src="@android:drawable/ic_input_add"
+                android:tint="?attr/colorPrimary" />
+
+            <ImageButton
+                android:id="@+id/button_edit"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="2dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/content_desc_edit_todo"
+                android:padding="2dp"
+                android:src="@android:drawable/ic_menu_edit"
+                android:tint="?attr/colorPrimary" />
+
+            <ImageButton
+                android:id="@+id/button_delete"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="2dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/content_desc_delete_todo"
+                android:padding="2dp"
+                android:src="@android:drawable/ic_menu_delete"
+                android:tint="?attr/colorPrimary" />
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

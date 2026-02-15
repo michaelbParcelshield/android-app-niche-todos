@@ -512,4 +512,76 @@ class TodoHierarchyUtilsTest {
         assertNull(child1?.parentId)
         assertEquals("parent", child2?.parentId)
     }
+
+    // ========== visibleTodos tests ==========
+
+    @Test
+    fun visibleTodos_collapsedParent_hidesDescendants() {
+        val todos = listOf(
+            makeTodo("root", sortOrder = 0),
+            makeTodo("child", parentId = "root", sortOrder = 0),
+            makeTodo("grandchild", parentId = "child", sortOrder = 0),
+            makeTodo("other", sortOrder = 1)
+        )
+
+        val result = TodoHierarchyUtils.visibleTodos(todos, setOf("child"))
+
+        assertEquals(listOf("root", "child", "other"), result.map { it.id })
+    }
+
+    @Test
+    fun visibleTodos_nestedCollapsedParent_hidesNestedDescendants() {
+        val todos = listOf(
+            makeTodo("root", sortOrder = 0),
+            makeTodo("child", parentId = "root", sortOrder = 0),
+            makeTodo("grandchild", parentId = "child", sortOrder = 0),
+            makeTodo("other", sortOrder = 1)
+        )
+
+        val result = TodoHierarchyUtils.visibleTodos(todos, setOf("root"))
+
+        assertEquals(listOf("root", "other"), result.map { it.id })
+    }
+
+    @Test
+    fun visibleTodos_uncollapsedTodoWithChildren_remainsVisible() {
+        val todos = listOf(
+            makeTodo("root", sortOrder = 0),
+            makeTodo("child", parentId = "root", sortOrder = 0),
+            makeTodo("orphan", sortOrder = 1)
+        )
+
+        val result = TodoHierarchyUtils.visibleTodos(todos, setOf())
+
+        assertEquals(listOf("root", "child", "orphan"), result.map { it.id })
+    }
+
+    @Test
+    fun visibleTodos_orphanWithCollapsedAncestorCycle_doesNotCrash() {
+        val todos = listOf(
+            makeTodo("a", parentId = "b", sortOrder = 0),
+            makeTodo("b", parentId = "a", sortOrder = 1),
+            makeTodo("orphan", sortOrder = 2)
+        )
+
+        val result = TodoHierarchyUtils.visibleTodos(todos, setOf("a"))
+
+        assertEquals(1, result.size)
+        assertTrue(result.any { it.id == "orphan" })
+    }
+
+    // ========== hasChildrenIds tests ==========
+
+    @Test
+    fun hasChildrenIds_identifiesParents() {
+        val todos = listOf(
+            makeTodo("parent"),
+            makeTodo("child1", parentId = "parent"),
+            makeTodo("child2", parentId = "parent")
+        )
+
+        val result = TodoHierarchyUtils.hasChildrenIds(todos)
+
+        assertEquals(setOf("parent"), result)
+    }
 }

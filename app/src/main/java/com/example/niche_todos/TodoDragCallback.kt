@@ -15,7 +15,8 @@ enum class DropMode {
 class TodoDragCallback(
     private val adapter: TodoAdapter,
     private val onDragComplete: (List<ReorderTodoItem>) -> Unit,
-    private val onInvalidDrop: () -> Unit
+    private val onInvalidDrop: () -> Unit,
+    private val canDrag: () -> Boolean = { true }
 ) : ItemTouchHelper.Callback() {
 
     private var draggedItemId: String? = null
@@ -228,7 +229,7 @@ class TodoDragCallback(
         // Swipe disabled
     }
 
-    override fun isLongPressDragEnabled(): Boolean = true
+    override fun isLongPressDragEnabled(): Boolean = canDrag()
 
     override fun isItemViewSwipeEnabled(): Boolean = false
 
