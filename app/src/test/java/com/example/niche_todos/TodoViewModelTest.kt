@@ -267,6 +267,38 @@ class TodoViewModelTest {
     }
 
     @Test
+    fun toggleComplete_whenBackendUpdateFails_revertsAndSetsSyncError() = runTest {
+        val initial = listOf(
+            Todo(
+                id = "t1",
+                properties = listOf(TodoProperty.Title("One")),
+                isCompleted = false,
+                parentId = null
+            )
+        )
+        val failingRepo = FakeTodoRepository(initialTodos = initial, shouldFail = true)
+        val viewModel = buildViewModel(repository = failingRepo)
+        val observer = Observer<List<Todo>> {}
+
+        try {
+            viewModel.todos.observeForever(observer)
+            viewModel.refreshTodos()
+            settleTodos()
+
+            val todoId = viewModel.todos.value?.firstOrNull()?.id ?: "t1"
+            viewModel.toggleComplete(todoId)
+            settleTodos()
+
+            // Should revert to original state after failure.
+            assertEquals(false, viewModel.todos.value?.firstOrNull()?.isCompleted)
+            assertNotNull(viewModel.syncError.value)
+            assertTrue(viewModel.syncError.value?.contains("Update failed") == true)
+        } finally {
+            viewModel.todos.removeObserver(observer)
+        }
+    }
+
+    @Test
     fun updateTodo_updatesText() = runTest {
         val viewModel = buildViewModel()
         val observer = Observer<List<Todo>> {}

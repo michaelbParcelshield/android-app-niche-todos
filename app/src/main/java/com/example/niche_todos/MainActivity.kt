@@ -2,11 +2,13 @@
 // Manages RecyclerView, ViewModel, and user interactions for todos
 package com.example.niche_todos
 
+import android.Manifest
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.text.format.DateFormat
 import android.view.Menu
@@ -16,12 +18,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.VisibleForTesting
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import android.util.Log
 import com.example.niche_todos.databinding.ActivityMainBinding
 import com.google.android.material.textfield.TextInputEditText
 import java.net.URL
@@ -45,17 +49,35 @@ class MainActivity : AppCompatActivity() {
     private var collapsedTodoIds: Set<String> = emptySet()
     private lateinit var healthStatusText: TextView
     private lateinit var authStatusText: TextView
+    private lateinit var voiceHeardText: TextView
     private lateinit var backendEndpointSwitch: SwitchCompat
     private var healthCheckMenuItem: MenuItem? = null
     private var googleSignInMenuItem: MenuItem? = null
+    private var voiceDrivenModeMenuItem: MenuItem? = null
+    private var voiceSimCheckMenuItem: MenuItem? = null
+    private var voiceSimSkipMenuItem: MenuItem? = null
+    private var voiceSeedDemoMenuItem: MenuItem? = null
     private var backendEndpointMenuItem: MenuItem? = null
     private lateinit var backendEndpointSelector: BackendEndpointSelector
     private lateinit var googleSignInFacade: GoogleSignInFacade
+    private lateinit var voiceDrivenModeController: VoiceDrivenModeController
+    private var voiceDrivenModeEnabled: Boolean = false
     private val googleSignInResultHandler = GoogleSignInResultHandler()
     private val googleSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         handleGoogleSignInResult(result.resultCode, result.data)
+    }
+    private val voicePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted) {
+            voiceDrivenModeEnabled = false
+            invalidateOptionsMenu()
+            Toast.makeText(this, R.string.voice_driven_permission_denied, Toast.LENGTH_SHORT).show()
+            return@registerForActivityResult
+        }
+        startVoiceDrivenMode()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,10 +104,29 @@ class MainActivity : AppCompatActivity() {
         emptyStateText = findViewById(R.id.text_empty_state)
         healthStatusText = findViewById(R.id.text_health_status)
         authStatusText = findViewById(R.id.text_auth_status)
+        voiceHeardText = findViewById(R.id.text_voice_heard)
         backendEndpointSwitch = findViewById(R.id.switch_backend_endpoint)
         googleSignInFacade = MainActivityDependencies.googleSignInFacadeFactory(
             this,
             getString(R.string.google_web_client_id)
+        )
+        voiceDrivenModeController = VoiceDrivenModeController(
+            context = this,
+            promptTextProvider = { getString(R.string.voice_driven_prompt_check_or_skip) },
+            listCompletedTextProvider = { getString(R.string.voice_driven_list_completed) },
+            permissionDeniedTextProvider = { getString(R.string.voice_driven_permission_denied) },
+            getVisibleTodos = { viewModel.visibleTodos.value.orEmpty() },
+            toggleComplete = { id -> viewModel.toggleComplete(id) },
+            onUserMessage = { message ->
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+            },
+            onTranscript = { text, isFinal ->
+                val prefixText = getString(R.string.voice_driven_heard_prefix, text)
+                voiceHeardText.text = prefixText
+                // Keep it visible while voice mode is enabled; partial results still show.
+                voiceHeardText.visibility = if (voiceDrivenModeEnabled) View.VISIBLE else View.GONE
+                voiceHeardText.alpha = if (isFinal) 0.9f else 0.7f
+            }
         )
 
         adapter = TodoAdapter(
@@ -102,6 +143,7 @@ class MainActivity : AppCompatActivity() {
         viewModel.visibleTodos.observe(this) { visibleTodos ->
             adapter.submitList(visibleTodos, hasChildrenIds, collapsedTodoIds)
             updateEmptyState(visibleTodos.isEmpty())
+            voiceDrivenModeController.onVisibleTodosChanged()
         }
 
         viewModel.hasChildrenIds.observe(this) { ids ->
@@ -120,6 +162,12 @@ class MainActivity : AppCompatActivity() {
                 hasChildrenIds,
                 collapsedTodoIds
             )
+        }
+
+        viewModel.syncError.observe(this) { message ->
+            val value = message?.takeIf { it.isNotBlank() } ?: return@observe
+            Log.d("VoiceMode", "syncError: $value")
+            Toast.makeText(this, value, Toast.LENGTH_SHORT).show()
         }
         backendStatusViewModel.healthStatus.observe(this) { status ->
             renderHealthStatus(status)
@@ -143,17 +191,31 @@ class MainActivity : AppCompatActivity() {
         menuInflater.inflate(R.menu.menu_main, menu)
         healthCheckMenuItem = menu.findItem(R.id.action_health_check)
         googleSignInMenuItem = menu.findItem(R.id.action_google_sign_in)
+        voiceDrivenModeMenuItem = menu.findItem(R.id.action_voice_driven_mode)
+        voiceSimCheckMenuItem = menu.findItem(R.id.action_voice_sim_check)
+        voiceSimSkipMenuItem = menu.findItem(R.id.action_voice_sim_skip)
+        voiceSeedDemoMenuItem = menu.findItem(R.id.action_voice_seed_demo)
         backendEndpointMenuItem = menu.findItem(R.id.action_toggle_backend_endpoint)
         backendStatusViewModel.healthStatus.value
             ?.let { renderHealthStatusMenuItemEnabledState(it) }
         backendStatusViewModel.authStatus.value
             ?.let { renderAuthStatusMenuItemEnabledState(it) }
         configureBackendEndpointMenuItem()
+        voiceDrivenModeMenuItem?.isChecked = voiceDrivenModeEnabled
+        val showVoiceSim = isDebugBuild()
+        voiceSimCheckMenuItem?.isVisible = showVoiceSim
+        voiceSimSkipMenuItem?.isVisible = showVoiceSim
+        voiceSeedDemoMenuItem?.isVisible = showVoiceSim
         return true
     }
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         configureBackendEndpointMenuItem()
+        voiceDrivenModeMenuItem?.isChecked = voiceDrivenModeEnabled
+        val showVoiceSim = isDebugBuild()
+        voiceSimCheckMenuItem?.isVisible = showVoiceSim
+        voiceSimSkipMenuItem?.isVisible = showVoiceSim
+        voiceSeedDemoMenuItem?.isVisible = showVoiceSim
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -169,6 +231,26 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
 
+            R.id.action_voice_driven_mode -> {
+                toggleVoiceDrivenModeFromMenu()
+                return true
+            }
+
+            R.id.action_voice_sim_check -> {
+                voiceDrivenModeController.debugSimulatePhrase("check")
+                return true
+            }
+
+            R.id.action_voice_sim_skip -> {
+                voiceDrivenModeController.debugSimulatePhrase("skip")
+                return true
+            }
+
+            R.id.action_voice_seed_demo -> {
+                seedVoiceDemoTodos()
+                return true
+            }
+
             R.id.action_toggle_backend_endpoint -> {
                 val nextState = !item.isChecked
                 backendEndpointSelector.setUseCloud(nextState)
@@ -178,6 +260,84 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return super.onOptionsItemSelected(item)
+    }
+
+    private fun seedVoiceDemoTodos() {
+        // Use local-only mode so voice flows can be tested without auth/network.
+        viewModel.debugEnableLocalOnlyMode(true)
+        val seeded = listOf(
+            Todo(
+                id = "demo-1",
+                properties = listOf(TodoProperty.Title("Demo one")),
+                isCompleted = false,
+                parentId = null,
+                sortOrder = 0
+            ),
+            Todo(
+                id = "demo-1-1",
+                properties = listOf(TodoProperty.Title("Nested demo (ignored)")),
+                isCompleted = false,
+                parentId = "demo-1",
+                sortOrder = 1
+            ),
+            Todo(
+                id = "demo-2",
+                properties = listOf(TodoProperty.Title("Demo two")),
+                isCompleted = false,
+                parentId = null,
+                sortOrder = 2
+            )
+        )
+        viewModel.debugReplaceTodos(seeded)
+        Toast.makeText(this, "Seeded demo todos", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun toggleVoiceDrivenModeFromMenu() {
+        if (voiceDrivenModeEnabled) {
+            Log.d("VoiceMode", "disabled via menu")
+            voiceDrivenModeEnabled = false
+            voiceDrivenModeController.stop()
+            voiceHeardText.visibility = View.GONE
+            voiceHeardText.text = ""
+            invalidateOptionsMenu()
+            return
+        }
+        val permissionState = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+        if (permissionState != PackageManager.PERMISSION_GRANTED) {
+            voicePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            return
+        }
+        startVoiceDrivenMode()
+    }
+
+    private fun startVoiceDrivenMode() {
+        val started = voiceDrivenModeController.start()
+        if (!started) {
+            voiceDrivenModeEnabled = false
+            invalidateOptionsMenu()
+            Toast.makeText(this, R.string.voice_driven_unavailable, Toast.LENGTH_SHORT).show()
+            return
+        }
+        Log.d("VoiceMode", "enabled via menu")
+        voiceDrivenModeEnabled = true
+        voiceHeardText.visibility = View.VISIBLE
+        invalidateOptionsMenu()
+    }
+
+    override fun onDestroy() {
+        voiceDrivenModeController.shutdown()
+        super.onDestroy()
+    }
+
+    override fun onStop() {
+        // Stop when we truly leave the app. Some devices show transient UI for speech recognition.
+        if (voiceDrivenModeEnabled) {
+            Log.d("VoiceMode", "stopping due to onStop")
+            voiceDrivenModeEnabled = false
+            voiceDrivenModeController.stop()
+            invalidateOptionsMenu()
+        }
+        super.onStop()
     }
 
     private fun formatDateTime(dateTime: LocalDateTime?): String {

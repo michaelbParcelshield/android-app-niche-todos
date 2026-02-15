@@ -17,6 +17,8 @@ class TodoViewModel(
 
     private val _todos = MutableLiveData<List<Todo>>(emptyList())
     val todos: LiveData<List<Todo>> = _todos
+    private val _syncError = MutableLiveData<String?>(null)
+    val syncError: LiveData<String?> = _syncError
     private val _collapsedTodoIds = MutableLiveData<Set<String>>(emptySet())
     val collapsedTodoIds: LiveData<Set<String>> = _collapsedTodoIds
     val visibleTodos: LiveData<List<Todo>> = MediatorLiveData<List<Todo>>().apply {
@@ -40,13 +42,30 @@ class TodoViewModel(
         return startOfDay to endOfDay
     }
 
+    // Debug-only escape hatch for running UI/voice flows without backend auth.
+    // This is intentionally not exposed as LiveData to avoid accidental production use.
+    private var debugLocalOnlyMode: Boolean = false
+
+    internal fun debugEnableLocalOnlyMode(enabled: Boolean) {
+        debugLocalOnlyMode = enabled
+    }
+
+    internal fun debugReplaceTodos(newTodos: List<Todo>) {
+        updateTodos(newTodos)
+    }
+
     fun defaultDateRange(): Pair<LocalDateTime, LocalDateTime> = currentDayBounds()
 
     fun refreshTodos() {
         viewModelScope.launch {
             when (val result = todoRepository.fetchTodos()) {
-                is TodoSyncResult.Success -> updateTodos(result.todos)
-                is TodoSyncResult.Failure -> Unit
+                is TodoSyncResult.Success -> {
+                    _syncError.value = null
+                    updateTodos(result.todos)
+                }
+                is TodoSyncResult.Failure -> {
+                    _syncError.value = "Fetch failed: ${syncFailureMessage(result)}"
+                }
             }
         }
     }
@@ -104,8 +123,13 @@ class TodoViewModel(
                 false,
                 parentId
             )) {
-                is TodoSyncResult.Success -> updateTodos(result.todos)
-                is TodoSyncResult.Failure -> Unit
+                is TodoSyncResult.Success -> {
+                    _syncError.value = null
+                    updateTodos(result.todos)
+                }
+                is TodoSyncResult.Failure -> {
+                    _syncError.value = "Create failed: ${syncFailureMessage(result)}"
+                }
             }
         }
     }
@@ -114,6 +138,15 @@ class TodoViewModel(
         val currentList = _todos.value ?: return
         val todo = currentList.firstOrNull { it.id == id } ?: return
         val updatedCompleted = !todo.isCompleted
+        // Optimistically update UI; if backend rejects, revert and surface error.
+        val optimistic = todo.copy(isCompleted = updatedCompleted)
+        _todos.value = currentList.map { item -> if (item.id == id) optimistic else item }
+        _syncError.value = null
+
+        if (debugLocalOnlyMode) {
+            return
+        }
+
         viewModelScope.launch {
             when (val result = todoRepository.updateTodo(
                 id = todo.id,
@@ -123,7 +156,11 @@ class TodoViewModel(
                 isCompleted = updatedCompleted
             )) {
                 is TodoSyncResult.Success -> updateTodos(result.todos)
-                is TodoSyncResult.Failure -> Unit
+                is TodoSyncResult.Failure -> {
+                    _syncError.value = "Update failed: ${syncFailureMessage(result)}"
+                    val latest = _todos.value ?: emptyList()
+                    _todos.value = latest.map { item -> if (item.id == id) todo else item }
+                }
             }
         }
     }
@@ -151,8 +188,13 @@ class TodoViewModel(
                 endDateTime = resolvedEnd,
                 isCompleted = todo.isCompleted
             )) {
-                is TodoSyncResult.Success -> updateTodos(result.todos)
-                is TodoSyncResult.Failure -> Unit
+                is TodoSyncResult.Success -> {
+                    _syncError.value = null
+                    updateTodos(result.todos)
+                }
+                is TodoSyncResult.Failure -> {
+                    _syncError.value = "Update failed: ${syncFailureMessage(result)}"
+                }
             }
         }
     }
@@ -161,8 +203,13 @@ class TodoViewModel(
         _todos.value ?: return
         viewModelScope.launch {
             when (val result = todoRepository.deleteTodo(id)) {
-                is TodoSyncResult.Success -> updateTodos(result.todos)
-                is TodoSyncResult.Failure -> Unit
+                is TodoSyncResult.Success -> {
+                    _syncError.value = null
+                    updateTodos(result.todos)
+                }
+                is TodoSyncResult.Failure -> {
+                    _syncError.value = "Delete failed: ${syncFailureMessage(result)}"
+                }
             }
         }
     }
@@ -194,8 +241,13 @@ class TodoViewModel(
         }
         viewModelScope.launch {
             when (val result = todoRepository.reorderTodos(items)) {
-                is TodoSyncResult.Success -> updateTodos(result.todos)
-                is TodoSyncResult.Failure -> Unit
+                is TodoSyncResult.Success -> {
+                    _syncError.value = null
+                    updateTodos(result.todos)
+                }
+                is TodoSyncResult.Failure -> {
+                    _syncError.value = "Reorder failed: ${syncFailureMessage(result)}"
+                }
             }
         }
     }
@@ -219,5 +271,11 @@ class TodoViewModel(
                 _collapsedTodoIds.value = prunedCollapsed
             }
         }
+    }
+
+    private fun syncFailureMessage(failure: TodoSyncResult.Failure): String {
+        val code = failure.statusCode?.let { "HTTP $it" } ?: "no status"
+        val details = failure.message?.takeIf { it.isNotBlank() }
+        return if (details == null) code else "$code ($details)"
     }
 }

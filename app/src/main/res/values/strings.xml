@@ -34,6 +34,15 @@
     <string name="auth_status_failure_with_details">Sign-in failed: %1$s</string>
     <string name="auth_status_missing_id_token">No Google ID token received</string>
     <string name="backend_endpoint_toggle_label">Use cloud backend</string>
+    <string name="voice_driven_mode_label">Voice-driven mode</string>
+    <string name="voice_driven_list_completed">List completed</string>
+    <string name="voice_driven_prompt_check_or_skip">Say "check" or "skip"</string>
+    <string name="voice_driven_permission_denied">Microphone permission is required for voice-driven mode</string>
+    <string name="voice_driven_unavailable">Voice recognition is not available on this device</string>
+    <string name="voice_driven_sim_check">Simulate "check"</string>
+    <string name="voice_driven_sim_skip">Simulate "skip"</string>
+    <string name="voice_driven_seed_demo">Seed demo todos</string>
+    <string name="voice_driven_heard_prefix">Heard: %1$s</string>
 
     <!-- Accessibility content descriptions -->
     <string name="content_desc_add_todo">Add new todo</string>
