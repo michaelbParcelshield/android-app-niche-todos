@@ -50,6 +50,7 @@
     <string name="content_desc_edit_todo">Edit todo</string>
     <string name="content_desc_delete_todo">Delete todo</string>
     <string name="content_desc_add_subtask">Add subtask</string>
+    <string name="content_desc_more_actions">More actions</string>
     <string name="content_desc_collapse_todo">Collapse todo</string>
     <string name="content_desc_expand_todo">Expand todo</string>
 

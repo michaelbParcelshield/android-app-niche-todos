@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ABOUTME: Popup menu for a todo row's overflow (kebab) actions. -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/action_add_subtask"
+        android:title="@string/content_desc_add_subtask" />
+    <item
+        android:id="@+id/action_edit"
+        android:title="@string/content_desc_edit_todo" />
+    <item
+        android:id="@+id/action_delete"
+        android:title="@string/content_desc_delete_todo" />
+</menu>
+
