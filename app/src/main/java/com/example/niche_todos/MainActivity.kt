@@ -192,10 +192,15 @@ class MainActivity : AppCompatActivity() {
                 item.setIcon(R.drawable.ic_stop)
                 item.title = getString(R.string.voice_driven_stop_label)
                 item.isEnabled = true
+                item.icon?.mutate()?.alpha = 255
             } else {
                 item.setIcon(R.drawable.ic_play)
                 item.title = getString(R.string.voice_driven_play_label)
-                item.isEnabled = canStartVoiceDrivenMode()
+                val canStart = canStartVoiceDrivenMode()
+                item.isEnabled = canStart
+                // AppCompat doesn't always visually dim action icons based on enabled state.
+                // Force a clear visual difference.
+                item.icon?.mutate()?.alpha = if (canStart) 255 else 102
             }
         }
         return super.onPrepareOptionsMenu(menu)

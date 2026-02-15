@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ABOUTME: Stateful tint for toolbar actions to make disabled icons visibly dim. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="#FFFFFFFF" android:state_enabled="true" />
+    <item android:color="#66FFFFFF" android:state_enabled="false" />
+</selector>
+
